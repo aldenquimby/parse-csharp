@@ -2,7 +2,7 @@
 
 namespace Parse.Api
 {
-    public class UserSession<T> where T : User
+    public class UserSession<T> where T : UserBase
     {
         public T User { get; set; }
         public string SessionToken { get; set; }

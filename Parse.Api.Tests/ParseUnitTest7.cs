@@ -21,8 +21,8 @@ namespace Parse.Api.Tests
         public int[] SomeArray { get; set; }
     }
 
-    public class ParseUnitTestUser : User
+    public class User : UserBase
     {
-        public string ExtraField { get; set; }
+        public string phone { get; set; }
     }
 }

@@ -30,7 +30,7 @@ namespace Parse.Api.Tests
             public DateTime Dude { get; set; }
             public int Yo { get; set; }
             public byte[] Bytes { get; set; }
-            public User User { get; set; }
+            public UserBase User { get; set; }
         }
 
         [Test]
@@ -43,7 +43,7 @@ namespace Parse.Api.Tests
             var result = _client.CreateObject(obj);
             AssertParseObjectEqual(obj, result);
 
-            // point to a different User
+            // point to a different UserBase
             result.SomePointer = new User {ObjectId = "ITxOCfOtFT"};
             _client.Update(result);
             
@@ -118,7 +118,35 @@ namespace Parse.Api.Tests
         [Test]
         public void TestUsers()
         {
-            
+            var user = new User
+            {
+                username = "test" + new Random().Next(),
+                password = new Random().Next().ToString(),
+            };
+            user.email = user.username + "@gmail.com";
+
+            var session = _client.SignUp(user);
+            Assert.IsNotNull(session.SessionToken);
+            AssertParseObjectEqual(user, session.User);
+
+            user.phone = new Random().Next().ToString();
+            var updated = _client.UpdateUser(session.User, session.SessionToken);
+            AssertParseObjectEqual(updated, session.User);
+
+            // no auth data included
+            var result2 = _client.GetUser<User>(updated.ObjectId);
+            Assert.IsNull(result2.authData);
+
+            // new session
+            var newSession = _client.LogIn(user);
+
+            _client.DeleteUser(session.User, newSession.SessionToken);
+        }
+
+        [Test]
+        public void TestAnalytics()
+        {
+            Assert.DoesNotThrow(() => _client.MarkAppOpened());
         }
 
         private void AssertParseObjectEqual<T>(T obj1, T obj2) where T : class, IParseObject

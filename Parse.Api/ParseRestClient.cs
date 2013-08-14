@@ -205,11 +205,11 @@ namespace Parse.Api
 
         #region users
 
-        public UserSession<T> SignUp<T>(T user) where T : User
+        public UserSession<T> SignUp<T>(T user) where T : UserBase
         {
-            if (user == null || string.IsNullOrEmpty(user.Username) || string.IsNullOrEmpty(user.Password))
+            if (user == null || string.IsNullOrEmpty(user.username) || string.IsNullOrEmpty(user.password))
             {
-                throw new ArgumentException("Username and Password are required.");
+                throw new ArgumentException("username and password are required.");
             }
 
             var request = CreateRequest(ParseUrls.USER, Method.POST);
@@ -226,15 +226,15 @@ namespace Parse.Api
             };
         }
 
-        public UserSession<T> LogIn<T>(T user) where T : User, new()
+        public UserSession<T> LogIn<T>(T user) where T : UserBase, new()
         {
-            if (user == null || string.IsNullOrEmpty(user.Username) || string.IsNullOrEmpty(user.Password))
+            if (user == null || string.IsNullOrEmpty(user.username) || string.IsNullOrEmpty(user.password))
             {
-                throw new ArgumentException("Username and Password are required.");
+                throw new ArgumentException("username and password are required.");
             }
 
             var request = CreateRequest(ParseUrls.LOGIN, Method.GET);
-            request.AddUrlParameters(new { user.Username, user.Password });
+            request.AddUrlParameters(new { user.username, user.password });
 
             var response = ExecuteAndValidate(request);
 
@@ -256,7 +256,7 @@ namespace Parse.Api
         /// <param name="objectId"></param>
         /// <param name="sesionToken">more data comes back if the user is authenticated</param>
         /// <returns></returns>
-        public T GetUser<T>(string objectId, string sesionToken = null) where T : User, new()
+        public T GetUser<T>(string objectId, string sesionToken = null) where T : UserBase, new()
         {
             if (string.IsNullOrEmpty(objectId))
             {
@@ -273,7 +273,7 @@ namespace Parse.Api
             return ExecuteAndValidate<T>(request);
         }
 
-        public T UpdateUser<T>(T user, string sessionToken) where T : User, new()
+        public T UpdateUser<T>(T user, string sessionToken) where T : UserBase, new()
         {
             if (user == null || string.IsNullOrEmpty(user.ObjectId) || string.IsNullOrEmpty(sessionToken))
             {
@@ -290,12 +290,12 @@ namespace Parse.Api
             return user;
         }
 
-        public QueryResult<T> GetUsers<T>() where T : User, new()
+        private QueryResult<T> GetUsers<T>() where T : UserBase, new()
         {
             throw new NotImplementedException();
         }
 
-        public void DeleteUser<T>(T user, string sessionToken) where T : User, new()
+        public void DeleteUser<T>(T user, string sessionToken) where T : UserBase, new()
         {
             if (user == null || string.IsNullOrEmpty(user.ObjectId) || string.IsNullOrEmpty(sessionToken))
             {
@@ -339,8 +339,11 @@ namespace Parse.Api
             var request = CreateRequest(ParseUrls.APP_OPENED, Method.POST);
             if (dateUtc.HasValue)
             {
-                var body = new { at = new ParseDate(dateUtc.Value) };
-                request.AddBody(body);
+                request.AddBody(new {at = new ParseDate(dateUtc.Value)});
+            }
+            else
+            {
+                request.AddBody(new {}); // need a blank body or the API borks
             }
             ExecuteAndValidate(request);
         }
@@ -439,7 +442,7 @@ namespace Parse.Api
 
         public static void AddParseBody(this IRestRequest request, IParseObject body)
         {
-            var propsToIgnore = new HashSet<string> {"CreatedAt", "UpdatedAt", "ObjectId"};
+            var propsToIgnore = new HashSet<string> {"CreatedAt", "UpdatedAt", "ObjectId", "authData", "emailVerified"};
 
             var dict = new Dictionary<string, object>();
 

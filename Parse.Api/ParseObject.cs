@@ -17,7 +17,7 @@ namespace Parse.Api
 
         public static string GetClassName(Type type)
         {
-            if (type == typeof (User))
+            if (type == typeof (UserBase))
             {
                 return "_User";
             }

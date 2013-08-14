@@ -69,41 +69,41 @@ namespace Parse.Api
         public string className { get; set; }
     }
 
-    public class User : ParseObject
+    public abstract class UserBase : ParseObject
     {
-        public string Username { get; set; }
-        public string Password { get; set; }
-        public string Email { get; set; }
-        public bool? EmailVerified { get; set; }
-        public AuthData AuthData { get; set; }
+        public string username { get; set; }
+        public string password { get; set; }
+        public string email { get; set; }
+        public bool? emailVerified { get; set; }
+        public AuthData authData { get; set; }
     }
 
     public class AuthData
     {
-        public FacebookAuthData Facebook { get; set; }
-        public TwitterAuthData Twitter { get; set; }
-        public AnonAuthData Anonymous { get; set; }
+        public FacebookAuthData facebook { get; set; }
+        public TwitterAuthData twitter { get; set; }
+        public AnonAuthData anonymous { get; set; }
     }
 
     public class FacebookAuthData
     {
-        public string Id { get; set; }
-        public string AccessToken { get; set; }
-        public DateTime ExpirationDate { get; set; }
+        public string id { get; set; }
+        public string accessToken { get; set; }
+        public DateTime expirationDate { get; set; }
     }
 
     public class TwitterAuthData
     {
-        public string Id { get; set; }
-        public string ScreenName { get; set; }
-        public string ConsumerKey { get; set; }
-        public string ConsumerSecret { get; set; }
-        public string AuthToken { get; set; }
-        public string AuthTokenSecret { get; set; }
+        public string id { get; set; }
+        public string screenName { get; set; }
+        public string consumerKey { get; set; }
+        public string consumerSecret { get; set; }
+        public string authToken { get; set; }
+        public string authTokenSecret { get; set; }
     }
 
     public class AnonAuthData
     {
-        public string Id { get; set; }
+        public string id { get; set; }
     }
 }
