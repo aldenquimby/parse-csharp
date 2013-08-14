@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Newtonsoft.Json;
@@ -35,42 +36,32 @@ namespace Parse.Api.Tests
         [Test]
         public void TestPointers()
         {
-
-            // CUSTOM JSON DESERIALIZATOIN
-            // Pointer already works 
-            // GeoPoint already works 
-            // Date handled
-            // Bytes handled
-            // TODO relation
-
-            var test = "{" +
-                       "Hey:{\"__type\":\"Date\",\"iso\":\"2011-08-21T18:02:52.249Z\"}," +
-                       "Dude:\"2011-08-21T18:02:52.249Z\"," +
-                       "yo:7," +
-                       "Bytes:{\"__type\":\"Bytes\",\"base64\":\"AQID\"}," +
-                       "User:{\"__type\":\"Pointer\",\"className\":\"_User\",\"objectId\":\"asd3AS3\"}" +
-                       "}";
-            var tmp = JsonConvert.DeserializeObject<Test>(test, new ParseDateConverter(), new ParseBytesConverter());
-
-            var obj = new ParseUnitTest5
+            var obj = new ParseUnitTest7
             {
-                SomePointer = new User {ObjectId = "FWMvHBYwmK"},
+                SomeDate = DateTime.UtcNow.AddDays(-5),
             };
-
-
             var result = _client.CreateObject(obj);
             AssertParseObjectEqual(obj, result);
 
             // point to a different User
             result.SomePointer = new User {ObjectId = "ITxOCfOtFT"};
             _client.Update(result);
-            var result2 = _client.GetObject<ParseUnitTest5>(result.ObjectId);
+            
+            // make sure get works
+            var result2 = _client.GetObject<ParseUnitTest7>(result.ObjectId);
             AssertParseObjectEqual(result, result2);
+            Assert.AreEqual(result.SomePointer.ObjectId, result2.SomePointer.ObjectId);
+
+            // make sure recursive get works
+            result2 = _client.GetObject<ParseUnitTest7>(result.ObjectId, true);
+            AssertParseObjectEqual(result, result2);
+            Assert.AreEqual(result.SomePointer.ObjectId, result2.SomePointer.ObjectId);
+            Assert.AreNotEqual(result.SomePointer.CreatedAt, default(DateTime));
 
             // remove the pointer
             result.SomePointer = null;
             _client.Update(result);
-            var result3 = _client.GetObject<ParseUnitTest5>(result.ObjectId);
+            var result3 = _client.GetObject<ParseUnitTest7>(result.ObjectId);
             AssertParseObjectEqual(result, result3);
 
             // delete the obj
@@ -80,7 +71,7 @@ namespace Parse.Api.Tests
         [Test]
         public void TestObjects()
         {
-            var obj = new ParseUnitTest4
+            var obj = new ParseUnitTest7
             {
                 SomeByte = 1,
                 SomeShort = 2,
@@ -100,13 +91,14 @@ namespace Parse.Api.Tests
 
             result.SomePointer = new User {ObjectId = "ITxOCfOtFT"};
             result.SomeNullableBool = true;
+            result.SomeGeoPoint = null;
             var result2 = _client.Update(result);
             AssertParseObjectEqual(result, result2);
 
-            var result3 = _client.GetObject<ParseUnitTest4>(result2.ObjectId);
+            var result3 = _client.GetObject<ParseUnitTest7>(result2.ObjectId);
             AssertParseObjectEqual(result2, result3);
 
-            var queryResults = _client.GetObjectsWithQuery<ParseUnitTest4>(new 
+            var queryResults = _client.GetObjects<ParseUnitTest7>(new 
             {
                 SomeByte = new Constraint(greaterThan:-7),
                 SomeInt = new Constraint(lessThanOrEqualTo:1),
@@ -116,11 +108,17 @@ namespace Parse.Api.Tests
             _client.DeleteObject(result3);
 
             // after an object is deleted, it should throw a NotFound
-            Assert.Throws<ApplicationException>(() => _client.GetObject<ParseUnitTest4>(result2.ObjectId));
+            Assert.Throws<ApplicationException>(() => _client.GetObject<ParseUnitTest7>(result2.ObjectId));
             
             // and it should not be in any query results
-            var queryResults2 = _client.GetObjectsWithQuery<ParseUnitTest4>();
+            var queryResults2 = _client.GetObjects<ParseUnitTest7>();
             Assert.IsFalse(queryResults2.Results.Any(x => x.ObjectId.Equals(result.ObjectId)));
+        }
+
+        [Test]
+        public void TestUsers()
+        {
+            
         }
 
         private void AssertParseObjectEqual<T>(T obj1, T obj2) where T : class, IParseObject
@@ -135,9 +133,23 @@ namespace Parse.Api.Tests
 
             foreach (var prop in typeof (T).GetProperties())
             {
+                if (prop.PropertyType.IsClass)
+                {
+                    continue;
+                }
+
                 var prop1 = prop.GetValue(obj1, null);
                 var prop2 = prop.GetValue(obj2, null);
-                Assert.AreEqual(prop1, prop2);
+
+                if (prop.PropertyType == typeof (DateTime))
+                {
+                    var diff = ((DateTime) prop1).Subtract((DateTime) prop2);
+                    Assert.IsTrue(Math.Abs(diff.TotalMilliseconds) < 1);
+                }
+                else
+                {
+                    Assert.AreEqual(prop1, prop2);
+                }
             }
         }
     }

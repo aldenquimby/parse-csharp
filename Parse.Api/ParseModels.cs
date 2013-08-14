@@ -10,6 +10,7 @@ namespace Parse.Api
         }
 
         public const string DATE_FMT = "yyyy-MM-ddTHH:mm:ss.fffZ";
+
         public readonly string __type = "Date";
         public string iso { get; set; }
     }

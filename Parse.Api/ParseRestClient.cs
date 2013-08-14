@@ -1,10 +1,9 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Threading;
 using Newtonsoft.Json;
-using Parse.Api.Annotations;
 using RestSharp;
 
 namespace Parse.Api
@@ -27,7 +26,12 @@ namespace Parse.Api
             };
             _client.AddDefaultHeader(ParseHeaders.APP_ID, appId);
             _client.AddDefaultHeader(ParseHeaders.REST_API_KEY, restApiKey);
+
+            // use Newtonsoft to deserialize so we can use custom converters
+            _client.AddHandler("application/json", new ParseJsonDeserializer {DateFormat = ParseDate.DATE_FMT});
         }
+
+        #region objects
 
         /// <summary>
         /// Creates a new ParseObject
@@ -76,9 +80,9 @@ namespace Parse.Api
         /// Get one object identified by its ID from Parse
         /// </summary>
         /// <param name="objectId">The ObjectId of the object</param>
-        /// <param name="includeObjReferences">Whether or not to fetch objects pointed to</param>
+        /// <param name="includeReferences">Whether or not to fetch objects pointed to</param>
         /// <returns>A dictionary with the object's attributes</returns>
-        public T GetObject<T>(string objectId, bool includeObjReferences = true) where T : class, IParseObject, new()
+        public T GetObject<T>(string objectId, bool includeReferences = false) where T : class, IParseObject, new()
         {
             if (string.IsNullOrEmpty(objectId))
             {
@@ -88,18 +92,15 @@ namespace Parse.Api
             var request = CreateRequest(ParseUrls.CLASS_OBJECT, Method.GET);
             request.AddUrlSegments(new { typeof(T).Name, ObjectId = objectId });
 
-            if (includeObjReferences)
+            if (includeReferences)
             {
                 var pointers = typeof (T).GetProperties()
                                          .Where(x => typeof (IParseObject).IsAssignableFrom(x.PropertyType))
                                          .Select(x => x.Name).ToList();
-
                 if (pointers.Count > 0)
                 {
                     request.AddParameter("include", string.Join(",", pointers));
                 }
-
-                // TODO multi-level include?
             }
 
             return ExecuteAndValidate<T>(request);
@@ -113,13 +114,14 @@ namespace Parse.Api
         /// <param name="limit">The maximum number of results to be returned (Default 100)</param>
         /// <param name="skip">The number of results to skip at the start (Default 0)</param>
         /// <returns>An array of Dictionaries containing the objects</returns>
-        public QueryResult<T> GetObjectsWithQuery<T>(object where = null, string order = null, int limit = 100, int skip = 0) where T : class, IParseObject, new()
+        public QueryResult<T> GetObjects<T>(object where = null, string order = null, int limit = 100, int skip = 0) where T : class, IParseObject, new()
         {
             var request = CreateRequest(ParseUrls.CLASS, Method.GET);
             request.AddUrlSegments(new {typeof (T).Name});
             request.AddUrlParameters(new { limit, skip, count = 1 });
             if (where != null)
             {
+                // use Newtonsoft so Criteria are serialized correctly
                 request.AddParameter("where", JsonConvert.SerializeObject(where));
             }
             if (order != null)
@@ -160,6 +162,48 @@ namespace Parse.Api
 
             ExecuteAndValidate(request);
         }
+
+        #endregion
+
+        #region relations
+
+        /// <summary>
+        /// Adds to an existing relation, or creates one if it doesn't exist.
+        /// </summary>
+        /// <param name="fromObj">The object with the relation</param>
+        /// <param name="relationName">The name of the relation</param>
+        /// <param name="toObjs">The ParseObjects to add to the relation</param>
+        public void AddToRelation<T>(T fromObj, string relationName, IEnumerable<IParseObject> toObjs) where T : class, IParseObject, new()
+        {
+            var request = CreateRequest(ParseUrls.CLASS_OBJECT, Method.PUT);
+            request.AddUrlSegments(new { fromObj.ObjectId, typeof(T).Name });
+            request.AddBody(new Dictionary<string, object>
+            {
+                {relationName, new {__op = "AddRelation", objects = toObjs.Select(x => new ParsePointer(x)).ToList()}}
+            });
+            ExecuteAndValidate(request);
+        }
+
+        /// <summary>
+        /// Removes from an existing relation.
+        /// </summary>
+        /// <param name="fromObj">The object with the relation</param>
+        /// <param name="relationName">The name of the relation</param>
+        /// <param name="toObjs">The ParseObjects to remove from the relation</param>
+        public void RemoveFromRelation<T>(T fromObj, string relationName, IEnumerable<IParseObject> toObjs) where T : class, IParseObject, new()
+        {
+            var request = CreateRequest(ParseUrls.CLASS_OBJECT, Method.PUT);
+            request.AddUrlSegments(new { fromObj.ObjectId, typeof(T).Name });
+            request.AddBody(new Dictionary<string, object>
+            {
+                {relationName, new {__op = "RemoveRelation", objects = toObjs.Select(x => new ParsePointer(x)).ToList()}}
+            });
+            ExecuteAndValidate(request);
+        }
+
+        #endregion
+
+        #region users
 
         public UserSession<T> SignUp<T>(T user) where T : User
         {
@@ -265,6 +309,15 @@ namespace Parse.Api
             ExecuteAndValidate(request);
         }
 
+        private class UserSessionResponse : ParseObject
+        {
+            public string SessionToken { get; set; }
+        }
+
+        #endregion
+
+        #region cloud functions
+
         public void CloudFunction(string name, object data = null)
         {
             var request = CreateRequest(ParseUrls.FUNCTION, Method.POST);
@@ -277,6 +330,10 @@ namespace Parse.Api
             ExecuteAndValidate<object>(request);
         }
 
+        #endregion
+
+        #region analytics
+
         public void MarkAppOpened(DateTime? dateUtc = null)
         {
             var request = CreateRequest(ParseUrls.APP_OPENED, Method.POST);
@@ -287,6 +344,8 @@ namespace Parse.Api
             }
             ExecuteAndValidate(request);
         }
+
+        #endregion
 
         #region helpers
 
@@ -348,14 +407,9 @@ namespace Parse.Api
         }
 
         #endregion
-
-        private class UserSessionResponse : ParseObject
-        {
-            public string SessionToken { get; [UsedImplicitly] set; }
-        }
     }
 
-    public static class RestSharpExtensions
+    internal static class RestSharpExtensions
     {
         public static void AddUrlSegments(this IRestRequest request, object urlSegments)
         {
@@ -407,6 +461,14 @@ namespace Parse.Api
                     {
                         value = new ParsePointer((IParseObject)value);
                     }
+                }
+                else if (prop.PropertyType.IsGenericType && value is IList && typeof(IParseObject).IsAssignableFrom(prop.PropertyType.GetGenericArguments()[0]))
+                {
+                    // explicity skip relations, need to be dealt with manually
+                    continue;
+
+                    // var pointers = ((IList) value).Cast<IParseObject>().Select(x => new ParsePointer(x)).ToList();
+                    // value = pointers.Count == 0 ? null : new {__op = "AddRelation", objects = pointers};
                 }
 
                 dict[prop.Name] = value;

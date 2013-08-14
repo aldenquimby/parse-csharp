@@ -47,7 +47,6 @@
     <Compile Include="ParseJsonConverter.cs" />
     <Compile Include="ParseObject.cs" />
     <Compile Include="ParseModels.cs" />
-    <Compile Include="Properties\Annotations.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ParseRestClient.cs" />
     <Compile Include="ParseRestClientModels.cs" />

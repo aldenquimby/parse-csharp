@@ -4,7 +4,6 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using RestSharp;
 using RestSharp.Deserializers;
-using RestSharp.Serializers;
 using JsonSerializer = Newtonsoft.Json.JsonSerializer;
 
 namespace Parse.Api
@@ -34,6 +33,12 @@ namespace Parse.Api
         public override byte[] ReadJson(JsonReader reader, Type objectType)
         {
             var jObject = JObject.Load(reader);
+
+            if (jObject["__type"].Value<string>() != "Bytes")
+            {
+                throw new JsonException("Failed to parse bytes from: " + jObject);
+            }
+
             var base64 = jObject["base64"].Value<string>();
             return Convert.FromBase64String(base64);
         }
@@ -49,29 +54,14 @@ namespace Parse.Api
             }
 
             var jObject = JObject.Load(reader);
+
+            if (jObject["__type"].Value<string>() != "Date")
+            {
+                throw new JsonException("Failed to parse date from: " + jObject);
+            }
+
             return jObject["iso"].Value<DateTime>();
         }
-    }
-
-    public class ParseJsonSerializer : ISerializer
-    {
-        public ParseJsonSerializer()
-        {
-            ContentType = "application/json";
-        }
-
-        public string Serialize(object obj)
-        {
-            return JsonConvert.SerializeObject(obj, new JsonSerializerSettings
-            {
-                DateFormatString = DateFormat,
-            });
-        }
-
-        public string RootElement { get; set; }
-        public string Namespace { get; set; }
-        public string DateFormat { get; set; }
-        public string ContentType { get; set; }
     }
 
     public class ParseJsonDeserializer : IDeserializer
