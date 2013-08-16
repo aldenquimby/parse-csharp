@@ -60,7 +60,7 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Parse.Api2\Parse.Api.csproj">
+    <ProjectReference Include="..\Parse.Api\Parse.Api.csproj">
       <Project>{71F6FBC1-4EA8-4D3C-BC61-72718D52CC80}</Project>
       <Name>Parse.Api</Name>
     </ProjectReference>

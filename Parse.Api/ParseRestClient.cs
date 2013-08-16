@@ -1,12 +1,9 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Text;
-using System.Threading;
 using Newtonsoft.Json;
 
 namespace Parse.Api
@@ -80,9 +77,9 @@ namespace Parse.Api
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="objectId"></param>
-        /// <param name="sesionToken">more data comes back if the user is authenticated</param>
+        /// <param name="sessionToken">more data comes back if the user is authenticated</param>
         /// <returns></returns>
-        T GetUser<T>(string objectId, string sesionToken = null) where T : UserBase, new();
+        T GetUser<T>(string objectId, string sessionToken = null) where T : UserBase, new();
 
         T UpdateUser<T>(T user, string sessionToken) where T : UserBase, new();
         void DeleteUser<T>(T user, string sessionToken) where T : UserBase, new();
@@ -92,11 +89,7 @@ namespace Parse.Api
 
     public class ParseRestClient : IParseRestClient
     {
-        private readonly HttpClientHandler _handler;
         private readonly HttpClient _client;
-
-        private readonly string _appId;
-        private readonly string _restApiKey;
 
         public ParseRestClient(string appId, string restApiKey)
         {
@@ -105,10 +98,8 @@ namespace Parse.Api
                 throw new ArgumentNullException();
             }
 
-            _appId = appId;
-            _restApiKey = restApiKey;
-            _handler = new HttpClientHandler();
-            _client = new HttpClient(_handler)
+            var handler = new HttpClientHandler();
+            _client = new HttpClient(handler)
             {
                 BaseAddress = new Uri(ParseUrls.BASE),
             };
@@ -132,7 +123,7 @@ namespace Parse.Api
             }
 
             var resource = string.Format(ParseUrls.CLASS, typeof (T).Name);
-            var request = CreateRequestMessage(resource, "POST");
+            var request = new HttpRequestMessage(HttpMethod.Post, resource);
             request.AddParseBody(obj);
 
             var response = ExecuteAndValidate<ParseObject>(request, HttpStatusCode.Created);
@@ -154,7 +145,7 @@ namespace Parse.Api
             }
 
             var resource = string.Format(ParseUrls.CLASS_OBJECT, typeof (T).Name, obj.ObjectId);
-            var request = CreateRequestMessage(resource, "PUT");
+            var request = new HttpRequestMessage(HttpMethod.Put, resource);
             request.AddParseBody(obj);
 
             var response = ExecuteAndValidate<ParseObject>(request);
@@ -188,7 +179,7 @@ namespace Parse.Api
                 }
             }
 
-            var request = CreateRequest(resource, "GET");
+            var request = new HttpRequestMessage(HttpMethod.Get, resource);
             return ExecuteAndValidate<T>(request);
         }
 
@@ -214,7 +205,7 @@ namespace Parse.Api
                 resource += "&order=" + order;
             }
 
-            var request = CreateRequest(resource, "GET");
+            var request = new HttpRequestMessage(HttpMethod.Get, resource);
             return ExecuteAndValidate<QueryResult<T>>(request);
         }
 
@@ -244,7 +235,7 @@ namespace Parse.Api
             }
 
             var resource = string.Format(ParseUrls.CLASS_OBJECT, typeof (T).Name, objectId);
-            var request = CreateRequest(resource, "DELETE");
+            var request = new HttpRequestMessage(HttpMethod.Delete, resource);
             ExecuteAndValidate(request);
         }
 
@@ -261,7 +252,7 @@ namespace Parse.Api
         public void AddToRelation<T>(T fromObj, string relationName, IEnumerable<ParseObject> toObjs) where T : ParseObject, new()
         {
             var resource = string.Format(ParseUrls.CLASS_OBJECT, typeof (T).Name, fromObj.ObjectId);
-            var request = CreateRequest(resource, "PUT");
+            var request = new HttpRequestMessage(HttpMethod.Put, resource);
             request.AddBody(new Dictionary<string, object>
             {
                 {relationName, new {__op = "AddRelation", objects = toObjs.Select(x => new ParsePointer(x)).ToList()}}
@@ -278,7 +269,7 @@ namespace Parse.Api
         public void RemoveFromRelation<T>(T fromObj, string relationName, IEnumerable<ParseObject> toObjs) where T : ParseObject, new()
         {
             var resource = string.Format(ParseUrls.CLASS_OBJECT, typeof(T).Name, fromObj.ObjectId);
-            var request = CreateRequest(resource, "PUT");
+            var request = new HttpRequestMessage(HttpMethod.Put, resource);
             request.AddBody(new Dictionary<string, object>
             {
                 {relationName, new {__op = "RemoveRelation", objects = toObjs.Select(x => new ParsePointer(x)).ToList()}}
@@ -297,7 +288,7 @@ namespace Parse.Api
                 throw new ArgumentException("username and password are required.");
             }
 
-            var request = CreateRequest(ParseUrls.USER, "POST");
+            var request = new HttpRequestMessage(HttpMethod.Post, ParseUrls.USER);
             request.AddParseBody(user);
 
             var response = ExecuteAndValidate<UserSessionResponse>(request, HttpStatusCode.Created);
@@ -319,7 +310,7 @@ namespace Parse.Api
             }
 
             var resource = ParseUrls.LOGIN + "?username=" + user.username + "&password=" + user.password;
-            var request = CreateRequest(resource, "GET");
+            var request = new HttpRequestMessage(HttpMethod.Get, resource);
 
             var response = ExecuteAndValidate(request);
 
@@ -339,9 +330,9 @@ namespace Parse.Api
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="objectId"></param>
-        /// <param name="sesionToken">more data comes back if the user is authenticated</param>
+        /// <param name="sessionToken">more data comes back if the user is authenticated</param>
         /// <returns></returns>
-        public T GetUser<T>(string objectId, string sesionToken = null) where T : UserBase, new()
+        public T GetUser<T>(string objectId, string sessionToken = null) where T : UserBase, new()
         {
             if (string.IsNullOrEmpty(objectId))
             {
@@ -349,10 +340,10 @@ namespace Parse.Api
             }
 
             var resource = string.Format(ParseUrls.USER_OBJECT, objectId);
-            var request = CreateRequest(resource, "GET");
-            if (sesionToken != null)
+            var request = new HttpRequestMessage(HttpMethod.Get, resource);
+            if (sessionToken != null)
             {
-                request.Headers[ParseHeaders.SESSION_TOKEN] = sesionToken;
+                request.Headers.Add(ParseHeaders.SESSION_TOKEN, sessionToken);
             }
 
             return ExecuteAndValidate<T>(request);
@@ -366,9 +357,9 @@ namespace Parse.Api
             }
 
             var resource = string.Format(ParseUrls.USER_OBJECT, user.ObjectId);
-            var request = CreateRequest(resource, "PUT");
+            var request = new HttpRequestMessage(HttpMethod.Put, resource);
             request.AddParseBody(user);
-            request.Headers[ParseHeaders.SESSION_TOKEN] = sessionToken;
+            request.Headers.Add(ParseHeaders.SESSION_TOKEN, sessionToken);
 
             var response = ExecuteAndValidate<ParseObject>(request);
             user.UpdatedAt = response.UpdatedAt; // only UpdatedAt comes back
@@ -386,8 +377,8 @@ namespace Parse.Api
             }
 
             var resource = string.Format(ParseUrls.USER_OBJECT, user.ObjectId);
-            var request = CreateRequest(resource, "DELETE");
-            request.Headers[ParseHeaders.SESSION_TOKEN] = sessionToken;
+            var request = new HttpRequestMessage(HttpMethod.Delete, resource);
+            request.Headers.Add(ParseHeaders.SESSION_TOKEN, sessionToken);
             
             ExecuteAndValidate(request);
         }
@@ -404,7 +395,7 @@ namespace Parse.Api
         public void CloudFunction(string name, object data = null)
         {
             var resource = string.Format(ParseUrls.FUNCTION, name);
-            var request = CreateRequest(resource, "POST");
+            var request = new HttpRequestMessage(HttpMethod.Post, resource);
             if (data != null)
             {
                 request.AddBody(data);
@@ -418,7 +409,7 @@ namespace Parse.Api
 
         public void MarkAppOpened(DateTime? dateUtc = null)
         {
-            var request = CreateRequest(ParseUrls.APP_OPENED, "POST");
+            var request = new HttpRequestMessage(HttpMethod.Post, ParseUrls.APP_OPENED);
             if (dateUtc.HasValue)
             {
                 request.AddBody(new {at = new ParseDate(dateUtc.Value)});
@@ -434,12 +425,7 @@ namespace Parse.Api
 
         #region helpers
 
-        private HttpRequestMessage CreateRequestMessage(string resource, string method)
-        {
-            return new HttpRequestMessage(new HttpMethod(method), resource);
-        }
-
-        private T ExecuteAndValidate<T>(HttpRequestMessage request, HttpStatusCode expectedCode = HttpStatusCode.OK) where T : new()
+        private string ExecuteAndValidate(HttpRequestMessage request, HttpStatusCode expectedCode = HttpStatusCode.OK)
         {
             var response = _client.SendAsync(request).Result;
             var content = response.Content.ReadAsStringAsync().Result;
@@ -450,108 +436,13 @@ namespace Parse.Api
                 throw new Exception(string.Format("Parse API failed with status code {0} ({1}): {2}", (int)response.StatusCode, response.StatusCode, content));
             }
 
-            return JsonConvert.DeserializeObject<T>(content);
+            return content;
         }
 
-        /// <summary>
-        /// Creates RestRequest for Parse REST API resource.
-        /// </summary>
-        private HttpWebRequest CreateRequest(string resource, string method)
+        private T ExecuteAndValidate<T>(HttpRequestMessage request, HttpStatusCode expectedCode = HttpStatusCode.OK) where T : new()
         {
-            var request = WebRequest.CreateHttp(ParseUrls.BASE + resource);
-            request.Method = method;
-            request.ContentType = "application/json";
-            request.Headers = new WebHeaderCollection();
-            request.Headers[ParseHeaders.APP_ID] = _appId;
-            request.Headers[ParseHeaders.REST_API_KEY] = _restApiKey;
-            return request;
-        }
-
-        private class Response
-        {
-            public string Content { get; set; }
-            public HttpStatusCode StatusCode { get; set; }
-            public Exception Exception { get; set; }
-        }
-
-        private Response GetResponse(HttpWebRequest request)
-        {
-            var response = new Response();
-
-            var responseDone = new ManualResetEvent(false);
-
-            try
-            {
-                request.BeginGetResponse(ar =>
-                {
-                    var theRequest = (HttpWebRequest)ar.AsyncState;
-                    using (var theResponse = (HttpWebResponse) theRequest.EndGetResponse(ar))
-                    {
-                        response.StatusCode = theResponse.StatusCode;
-
-                        try
-                        {
-                            using (var responseStream = theResponse.GetResponseStream())
-                            using (var sr = new StreamReader(responseStream))
-                            {
-                                response.Content = sr.ReadToEnd();
-                            }
-                        }
-                        catch (Exception e)
-                        {
-                            response.Exception = e;
-                        }
-                    }
-
-                    responseDone.Set();
-                }, request);
-            }
-            catch (Exception e)
-            {
-                if (response.Exception == null)
-                {
-                    response.Exception = e;
-                }
-            }
-
-            responseDone.WaitOne();
-
-            return response;
-        }
-
-        /// <summary>
-        /// Returns true if response status is valid and there is no exception.
-        /// </summary>
-        private bool IsValidResponse(Response response, HttpStatusCode expectedCode = HttpStatusCode.OK)
-        {
-            return response.Exception == null &&
-                   response.StatusCode == expectedCode;
-        }
-
-        /// <summary>
-        /// Executes request, validates response, returns content.
-        /// </summary>
-        private string ExecuteAndValidate(HttpWebRequest request, HttpStatusCode expectedCode = HttpStatusCode.OK)
-        {
-            var response = GetResponse(request);
-
-            // make sure request went through ok
-            if (!IsValidResponse(response, expectedCode))
-            {
-                // when a request fails, body is JSON: {code:105,error:"invalid field name: b!ng"}
-                throw new Exception("Parse API failed: " + response.Content, response.Exception);
-            }
-
-            return response.Content;
-        }
-
-        /// <summary>
-        /// Executes request, validates response, returns deserialized data.
-        /// </summary>
-        private T ExecuteAndValidate<T>(HttpWebRequest request, HttpStatusCode expectedCode = HttpStatusCode.OK) where T : new()
-        {
-            var response = ExecuteAndValidate(request, expectedCode);
-            return JsonConvert.DeserializeObject<T>(response);
+            var responseContent = ExecuteAndValidate(request, expectedCode);
+            return JsonConvert.DeserializeObject<T>(responseContent);
         }
 
         #endregion
@@ -559,65 +450,6 @@ namespace Parse.Api
 
     internal static class HttpWebRequestExtensions
     {
-        public static void AddParseBody(this HttpWebRequest request, ParseObject body)
-        {
-            var propsToIgnore = new List<string> {"CreatedAt", "UpdatedAt", "ObjectId", "authData", "emailVerified"};
-
-            var dict = new Dictionary<string, object>();
-
-            foreach (var prop in body.GetType().GetProperties().Where(x => !propsToIgnore.Contains(x.Name)))
-            {
-                var value = prop.GetValue(body, null);
-
-                if (prop.PropertyType == typeof (DateTime))
-                {
-                    value = new ParseDate((DateTime)value);
-                }
-                else if (prop.PropertyType == typeof (byte[]))
-                {
-                    value = new ParseBytes((byte[]) value);
-                }
-                else if (typeof(ParseObject).IsAssignableFrom(prop.PropertyType))
-                {
-                    if (value != null)
-                    {
-                        value = new ParsePointer((ParseObject)value);
-                    }
-                }
-                else if (prop.PropertyType.IsGenericType && value is IList && typeof(ParseObject).IsAssignableFrom(prop.PropertyType.GetGenericArguments()[0]))
-                {
-                    // explicity skip relations, need to be dealt with manually
-                    continue;
-
-                    // var pointers = ((IList) value).Cast<ParseObject>().Select(x => new ParsePointer(x)).ToList();
-                    // value = pointers.Count == 0 ? null : new {__op = "AddRelation", objects = pointers};
-                }
-
-                dict[prop.Name] = value;
-            }
-
-            request.AddBody(dict);
-        }
-
-        public static void AddBody(this HttpWebRequest request, object body)
-        {
-            var serializedBody = JsonConvert.SerializeObject(body);
-            var postData = Encoding.UTF8.GetBytes(serializedBody);
-
-            // synchronously write request
-            var requestDone = new ManualResetEvent(false);
-            request.BeginGetRequestStream(ar =>
-            {
-                var theRequest = (HttpWebRequest)ar.AsyncState;
-                using (var requestStream = theRequest.EndGetRequestStream(ar))
-                {
-                    requestStream.Write(postData, 0, postData.Length);
-                }
-                requestDone.Set();
-            }, request);
-            requestDone.WaitOne();
-        }
-
         public static void AddParseBody(this HttpRequestMessage request, ParseObject body)
         {
             var propsToIgnore = new List<string> { "CreatedAt", "UpdatedAt", "ObjectId", "authData", "emailVerified" };
