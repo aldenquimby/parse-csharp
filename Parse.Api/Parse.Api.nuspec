@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>$id$</id>
+    <version>$version$</version>
+    <title>$title$</title>
+    <authors>$author$</authors>
+    <owners>$author$</owners>
+    <projectUrl>https://github.com/aldenquimby/parse-csharp</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>$description$</description>
+    <releaseNotes>Change to Portable Class Library and include XML documentation. Can now be used with .NET Framwork 4.0 and higher, Silverlight 4 and higher, Windows Phone 7.1 and higher, and .NET for Windows Store apps.</releaseNotes>
+    <copyright>Copyright 2013</copyright>
+    <tags>Parse REST API wrapper</tags>
+  </metadata>
+</package>

@@ -5,88 +5,18 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using Newtonsoft.Json;
+using Parse.Api.Attributes;
+using Parse.Api.Converters;
+using Parse.Api.Models;
+using Parse.Api.Models.Internal;
 
 namespace Parse.Api
 {
-    public interface IParseRestClient
-    {
-        /// <summary>
-        /// Creates a new ParseObject
-        /// </summary>
-        /// <param name="obj">The object to be created on the server</param>
-        /// <returns>A fully populated ParseObject, including ObjectId</returns>
-        T CreateObject<T>(T obj) where T : ParseObject, new();
-
-        /// <summary>
-        /// Updates a pre-existing ParseObject
-        /// </summary>
-        /// <param name="obj">The object being updated</param>
-        T Update<T>(T obj) where T : ParseObject, new();
-
-        /// <summary>
-        /// Get one object identified by its ID from Parse
-        /// </summary>
-        /// <param name="objectId">The ObjectId of the object</param>
-        /// <param name="includeReferences">Whether or not to fetch objects pointed to</param>
-        /// <returns>A dictionary with the object's attributes</returns>
-        T GetObject<T>(string objectId, bool includeReferences = false) where T : ParseObject, new();
-
-        /// <summary>
-        /// Search for objects on Parse based on attributes. 
-        /// </summary>
-        /// <param name="where">See https://www.parse.com/docs/rest#data-querying for more details</param>
-        /// <param name="order">The name of the attribute used to order the results. Prefacing with '-' will reverse the results.</param>
-        /// <param name="limit">The maximum number of results to be returned (Default 100)</param>
-        /// <param name="skip">The number of results to skip at the start (Default 0)</param>
-        /// <returns>An array of Dictionaries containing the objects</returns>
-        QueryResult<T> GetObjects<T>(object where = null, string order = null, int limit = 100, int skip = 0) where T : ParseObject, new();
-
-        /// <summary>
-        /// Deletes an object from Parse
-        /// </summary>
-        /// <param name="obj">The object to be deleted</param>
-        void DeleteObject<T>(T obj) where T : ParseObject, new();
-
-        /// <summary>
-        /// Deletes an object from Parse
-        /// </summary>
-        /// <param name="objectId">The object id to be deleted</param>
-        void DeleteObject<T>(string objectId) where T : ParseObject, new();
-
-        /// <summary>
-        /// Adds to an existing relation, or creates one if it doesn't exist.
-        /// </summary>
-        /// <param name="fromObj">The object with the relation</param>
-        /// <param name="relationName">The name of the relation</param>
-        /// <param name="toObjs">The ParseObjects to add to the relation</param>
-        void AddToRelation<T>(T fromObj, string relationName, IEnumerable<ParseObject> toObjs) where T : ParseObject, new();
-
-        /// <summary>
-        /// Removes from an existing relation.
-        /// </summary>
-        /// <param name="fromObj">The object with the relation</param>
-        /// <param name="relationName">The name of the relation</param>
-        /// <param name="toObjs">The ParseObjects to remove from the relation</param>
-        void RemoveFromRelation<T>(T fromObj, string relationName, IEnumerable<ParseObject> toObjs) where T : ParseObject, new();
-
-        UserSession<T> SignUp<T>(T user) where T : UserBase;
-        UserSession<T> LogIn<T>(T user) where T : UserBase, new();
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="objectId"></param>
-        /// <param name="sessionToken">more data comes back if the user is authenticated</param>
-        /// <returns></returns>
-        T GetUser<T>(string objectId, string sessionToken = null) where T : UserBase, new();
-
-        T UpdateUser<T>(T user, string sessionToken) where T : UserBase, new();
-        void DeleteUser<T>(T user, string sessionToken) where T : UserBase, new();
-        void CloudFunction(string name, object data = null);
-        void MarkAppOpened(DateTime? dateUtc = null);
-    }
-
+    /// <summary>
+    /// Wrapper for the Parse REST API, found here: https://parse.com/docs/rest
+    /// All methods throw an exception if Parse request fails, with message that includes Parse error.
+    /// Example exception: "Parse API failed with status code 400 (Bad Request): {code:105,error:"invalid field name: b!ng"}
+    /// </summary>
     public class ParseRestClient : IParseRestClient
     {
         private readonly HttpClient _client;
@@ -139,9 +69,9 @@ namespace Parse.Api
         /// <param name="obj">The object being updated</param>
         public T Update<T>(T obj) where T : ParseObject, new()
         {
-            if (obj == null)
+            if (obj == null || string.IsNullOrEmpty(obj.ObjectId))
             {
-                throw new ArgumentNullException("obj");
+                throw new ArgumentException("ObjectId is required.");
             }
 
             var resource = string.Format(ParseUrls.CLASS_OBJECT, typeof (T).Name, obj.ObjectId);
@@ -166,8 +96,20 @@ namespace Parse.Api
                 throw new ArgumentNullException("objectId");
             }
 
-            var resource = string.Format(ParseUrls.CLASS_OBJECT, typeof (T).Name, objectId);
+            var type = typeof (T);
 
+            if (typeof (ParseUser).IsAssignableFrom(type))
+            {
+                throw new ArgumentException("Use GetUser() instead of GetObject() to query users.");
+            }
+
+            var resource = string.Format(ParseUrls.CLASS_OBJECT, type.Name, objectId);
+
+            return GetObjectInternal<T>(resource, includeReferences, null);
+        }
+
+        private T GetObjectInternal<T>(string resource, bool includeReferences, string sessionToken) where T : ParseObject, new()
+        {
             if (includeReferences)
             {
                 var pointers = typeof(T).GetProperties()
@@ -180,20 +122,39 @@ namespace Parse.Api
             }
 
             var request = new HttpRequestMessage(HttpMethod.Get, resource);
+
+            if (sessionToken != null)
+            {
+                request.Headers.Add(ParseHeaders.SESSION_TOKEN, sessionToken);
+            }
+
             return ExecuteAndValidate<T>(request);
         }
 
         /// <summary>
-        /// Search for objects on Parse based on attributes. 
+        /// Search for objects on Parse based on attributes
         /// </summary>
         /// <param name="where">See https://www.parse.com/docs/rest#data-querying for more details</param>
-        /// <param name="order">The name of the attribute used to order the results. Prefacing with '-' will reverse the results.</param>
-        /// <param name="limit">The maximum number of results to be returned (Default 100)</param>
-        /// <param name="skip">The number of results to skip at the start (Default 0)</param>
-        /// <returns>An array of Dictionaries containing the objects</returns>
+        /// <param name="order">The name of the attribute used to order results. Prefacing with '-' will reverse results. Comma separate for multiple orderings.</param>
+        /// <param name="limit">The maximum number of results to be returned</param>
+        /// <param name="skip">The number of results to skip at the start</param>
+        /// <returns>A list of result object, and the total count of results in case the results were limited</returns>
         public QueryResult<T> GetObjects<T>(object where = null, string order = null, int limit = 100, int skip = 0) where T : ParseObject, new()
         {
-            var resource = string.Format(ParseUrls.CLASS, typeof (T).Name);
+            var type = typeof (T);
+
+            if (typeof (ParseUser).IsAssignableFrom(type))
+            {
+                throw new ArgumentException("Use GetUsers() instead of GetObjects() to query users.");
+            }
+
+            var resource = string.Format(ParseUrls.CLASS, type.Name);
+
+            return GetObjectsInternal<T>(resource, where, order, limit, skip);
+        }
+
+        private QueryResult<T> GetObjectsInternal<T>(string resource, object where, string order, int limit, int skip) where T : ParseObject, new()
+        {
             resource += "?limit=" + limit + "&skip=" + skip + "&count=1";
             if (where != null)
             {
@@ -215,26 +176,19 @@ namespace Parse.Api
         /// <param name="obj">The object to be deleted</param>
         public void DeleteObject<T>(T obj) where T : ParseObject, new()
         {
-            if (obj == null)
+            if (obj == null || string.IsNullOrEmpty(obj.ObjectId))
             {
-                throw new ArgumentNullException("obj");
+                throw new ArgumentException("ObjectId is required.");
             }
 
-            DeleteObject<T>(obj.ObjectId);
-        }
+            var type = typeof(T);
 
-        /// <summary>
-        /// Deletes an object from Parse
-        /// </summary>
-        /// <param name="objectId">The object id to be deleted</param>
-        public void DeleteObject<T>(string objectId) where T : ParseObject, new()
-        {
-            if (string.IsNullOrEmpty(objectId))
+            if (typeof(ParseUser).IsAssignableFrom(type))
             {
-                throw new ArgumentNullException("objectId");
+                throw new ArgumentException("Use DeleteUser() instead of DeleteObject() to delete users.");
             }
 
-            var resource = string.Format(ParseUrls.CLASS_OBJECT, typeof (T).Name, objectId);
+            var resource = string.Format(ParseUrls.CLASS_OBJECT, type.Name, obj.ObjectId);
             var request = new HttpRequestMessage(HttpMethod.Delete, resource);
             ExecuteAndValidate(request);
         }
@@ -244,7 +198,7 @@ namespace Parse.Api
         #region relations
 
         /// <summary>
-        /// Adds to an existing relation, or creates one if it doesn't exist.
+        /// Adds to an existing relation, or creates one if it doesn't exist
         /// </summary>
         /// <param name="fromObj">The object with the relation</param>
         /// <param name="relationName">The name of the relation</param>
@@ -261,7 +215,7 @@ namespace Parse.Api
         }
 
         /// <summary>
-        /// Removes from an existing relation.
+        /// Removes from an existing relation
         /// </summary>
         /// <param name="fromObj">The object with the relation</param>
         /// <param name="relationName">The name of the relation</param>
@@ -281,9 +235,14 @@ namespace Parse.Api
 
         #region users
 
-        public UserSession<T> SignUp<T>(T user) where T : UserBase
+        /// <summary>
+        /// Creates a new ParseUser and session
+        /// </summary>
+        /// <param name="user">The user to create, requires username and password</param>
+        /// <returns>Fully populated created user and a session token</returns>
+        public UserSession<T> SignUp<T>(T user) where T : ParseUser
         {
-            if (user == null || string.IsNullOrEmpty(user.username) || string.IsNullOrEmpty(user.password))
+            if (user == null || string.IsNullOrEmpty(user.Username) || string.IsNullOrEmpty(user.Password))
             {
                 throw new ArgumentException("username and password are required.");
             }
@@ -302,14 +261,19 @@ namespace Parse.Api
             };
         }
 
-        public UserSession<T> LogIn<T>(T user) where T : UserBase, new()
+        /// <summary>
+        /// Log in as a ParseUser to get a session
+        /// </summary>
+        /// <param name="user">The user to log in, requires username and password</param>
+        /// <returns>Fully populated logged in user and a session token</returns>
+        public UserSession<T> LogIn<T>(T user) where T : ParseUser, new()
         {
-            if (user == null || string.IsNullOrEmpty(user.username) || string.IsNullOrEmpty(user.password))
+            if (user == null || string.IsNullOrEmpty(user.Username) || string.IsNullOrEmpty(user.Password))
             {
                 throw new ArgumentException("username and password are required.");
             }
 
-            var resource = ParseUrls.LOGIN + "?username=" + user.username + "&password=" + user.password;
+            var resource = ParseUrls.LOGIN + "?username=" + user.Username + "&password=" + user.Password;
             var request = new HttpRequestMessage(HttpMethod.Get, resource);
 
             var response = ExecuteAndValidate(request);
@@ -326,13 +290,13 @@ namespace Parse.Api
         }
 
         /// <summary>
-        /// 
+        /// Get one user identified by it's Parse ID
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="objectId"></param>
+        /// <param name="objectId">The ObjectId of the user</param>
+        /// <param name="includeReferences">Whether or not to fetch objects pointed to</param>
         /// <param name="sessionToken">more data comes back if the user is authenticated</param>
         /// <returns></returns>
-        public T GetUser<T>(string objectId, string sessionToken = null) where T : UserBase, new()
+        public T GetUser<T>(string objectId, string sessionToken = null, bool includeReferences = false) where T : ParseUser, new()
         {
             if (string.IsNullOrEmpty(objectId))
             {
@@ -340,16 +304,29 @@ namespace Parse.Api
             }
 
             var resource = string.Format(ParseUrls.USER_OBJECT, objectId);
-            var request = new HttpRequestMessage(HttpMethod.Get, resource);
-            if (sessionToken != null)
-            {
-                request.Headers.Add(ParseHeaders.SESSION_TOKEN, sessionToken);
-            }
 
-            return ExecuteAndValidate<T>(request);
+            return GetObjectInternal<T>(resource, includeReferences, sessionToken);
         }
 
-        public T UpdateUser<T>(T user, string sessionToken) where T : UserBase, new()
+        /// <summary>
+        /// Search for users on Parse based on attributes
+        /// </summary>
+        /// <param name="where">See https://www.parse.com/docs/rest#data-querying for more details</param>
+        /// <param name="order">The name of the attribute used to order results. Prefacing with '-' will reverse results. Comma separate for multiple orderings.</param>
+        /// <param name="limit">The maximum number of results to be returned</param>
+        /// <param name="skip">The number of results to skip at the start</param>
+        /// <returns>A list of result users, and the total count of results in case the results were limited</returns>
+        public QueryResult<T> GetUsers<T>(object where = null, string order = null, int limit = 100, int skip = 0) where T : ParseUser, new()
+        {
+            return GetObjectsInternal<T>(ParseUrls.USER, where, order, limit, skip);
+        }
+
+        /// <summary>
+        /// Updates a pre-existing ParseUser
+        /// </summary>
+        /// <param name="user">The user to update</param>
+        /// <param name="sessionToken">Session token given by SignUp or LogIn</param>
+        public T UpdateUser<T>(T user, string sessionToken) where T : ParseUser, new()
         {
             if (user == null || string.IsNullOrEmpty(user.ObjectId) || string.IsNullOrEmpty(sessionToken))
             {
@@ -366,10 +343,12 @@ namespace Parse.Api
             return user;
         }
 
-        // TODO add method
-        // public QueryResult<T> GetUsers<T>() where T : UserBase, new()
-
-        public void DeleteUser<T>(T user, string sessionToken) where T : UserBase, new()
+        /// <summary>
+        /// Updates a pre-existing ParseUser
+        /// </summary>
+        /// <param name="user">The user to delete</param>
+        /// <param name="sessionToken">Session token given by SignUp or LogIn</param>
+        public void DeleteUser<T>(T user, string sessionToken) where T : ParseUser, new()
         {
             if (user == null || string.IsNullOrEmpty(user.ObjectId) || string.IsNullOrEmpty(sessionToken))
             {
@@ -383,30 +362,35 @@ namespace Parse.Api
             ExecuteAndValidate(request);
         }
 
-        private class UserSessionResponse : ParseObject
-        {
-            public string SessionToken { get; set; }
-        }
-
         #endregion
 
         #region cloud functions
 
-        public void CloudFunction(string name, object data = null)
+        /// <summary>
+        /// Executes a pre-existing cloud function, see here for details: https://www.parse.com/docs/cloud_code_guide
+        /// </summary>
+        /// <param name="name">The name of the cloud code function</param>
+        /// <param name="data">Data to pass to the cloud code function</param>
+        /// <returns>The result of the cloud code function</returns>
+        public string CloudFunction(string name, object data = null)
         {
             var resource = string.Format(ParseUrls.FUNCTION, name);
+            
             var request = new HttpRequestMessage(HttpMethod.Post, resource);
-            if (data != null)
-            {
-                request.AddBody(data);
-            }
-            ExecuteAndValidate<object>(request);
+            request.AddBody(data ?? new {}); // need a blank body or the API borks
+            
+            var response = ExecuteAndValidate<CloudFunctionResponse>(request);
+            return response.Result;
         }
 
         #endregion
 
         #region analytics
 
+        /// <summary>
+        /// Records an AppOpened event for Parse analytics
+        /// </summary>
+        /// <param name="dateUtc">The date the app was opened, or now if not specified</param>
         public void MarkAppOpened(DateTime? dateUtc = null)
         {
             var request = new HttpRequestMessage(HttpMethod.Post, ParseUrls.APP_OPENED);
@@ -442,7 +426,20 @@ namespace Parse.Api
         private T ExecuteAndValidate<T>(HttpRequestMessage request, HttpStatusCode expectedCode = HttpStatusCode.OK) where T : new()
         {
             var responseContent = ExecuteAndValidate(request, expectedCode);
-            return JsonConvert.DeserializeObject<T>(responseContent);
+            return JsonConvert.DeserializeObject<T>(responseContent, new JsonSerializerSettings
+            {
+                Converters = new List<JsonConverter> {new ParseBytesConverter(), new ParseDateConverter()},
+            });
+        }
+
+        private class UserSessionResponse : ParseObject
+        {
+            public string SessionToken { get; set; }
+        }
+
+        private class CloudFunctionResponse
+        {
+            public string Result { get; set; }
         }
 
         #endregion
@@ -452,11 +449,11 @@ namespace Parse.Api
     {
         public static void AddParseBody(this HttpRequestMessage request, ParseObject body)
         {
-            var propsToIgnore = new List<string> { "CreatedAt", "UpdatedAt", "ObjectId", "authData", "emailVerified" };
+            // var propsToIgnore = new List<string> { "CreatedAt", "UpdatedAt", "ObjectId", "AuthData", "EmailVerified" };
 
             var dict = new Dictionary<string, object>();
 
-            foreach (var prop in body.GetType().GetProperties().Where(x => !propsToIgnore.Contains(x.Name)))
+            foreach (var prop in body.GetType().GetProperties()) //.Where(x => !propsToIgnore.Contains(x.Name)))
             {
                 var value = prop.GetValue(body, null);
 
@@ -484,7 +481,35 @@ namespace Parse.Api
                     // value = pointers.Count == 0 ? null : new {__op = "AddRelation", objects = pointers};
                 }
 
-                dict[prop.Name] = value;
+                var attrs = prop.GetCustomAttributes(true);
+                JsonIgnoreForSerializationAttribute jsonIgnore = null;
+                JsonPropertyAttribute jsonProp = null;
+                foreach (var attr in attrs)
+                {
+                    var tmp1 = attr as JsonPropertyAttribute;
+                    if (tmp1 != null)
+                    {
+                        jsonProp = tmp1;
+                    }
+                    var tmp2 = attr as JsonIgnoreForSerializationAttribute;
+                    if (tmp2 != null)
+                    {
+                        jsonIgnore = tmp2;
+                    }
+                }
+                if (jsonIgnore != null)
+                {
+                    continue;
+                }
+
+                if (jsonProp != null && !string.IsNullOrEmpty(jsonProp.PropertyName))
+                {
+                    dict[jsonProp.PropertyName] = value;
+                }
+                else
+                {
+                    dict[prop.Name] = value;
+                }
             }
 
             request.AddBody(dict);

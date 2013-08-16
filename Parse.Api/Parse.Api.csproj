@@ -23,6 +23,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <DocumentationFile>bin\Debug\Parse.Api.XML</DocumentationFile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -31,13 +32,25 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <DocumentationFile>bin\Release\Parse.Api.XML</DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Constraint.cs" />
-    <Compile Include="ParseJsonConverter.cs" />
-    <Compile Include="ParseModels.cs" />
+    <Compile Include="Attributes\JsonIgnoreForSerializationAttribute.cs" />
+    <Compile Include="Converters\ParseBytesConverter.cs" />
+    <Compile Include="Converters\ParseDateConverter.cs" />
+    <Compile Include="IParseRestClient.cs" />
+    <Compile Include="Models\Constraint.cs" />
+    <Compile Include="Models\Internal\ParseBytes.cs" />
+    <Compile Include="Models\Internal\ParseDate.cs" />
+    <Compile Include="Models\ParseGeoPoint.cs" />
+    <Compile Include="Models\ParseObject.cs" />
+    <Compile Include="Models\Internal\ParsePointer.cs" />
+    <Compile Include="Models\Internal\ParseRelation.cs" />
+    <Compile Include="Models\UserSession.cs" />
+    <Compile Include="Converters\ParseJsonConverter.cs" />
+    <Compile Include="Models\ParseUser.cs" />
     <Compile Include="ParseRestClient.cs" />
-    <Compile Include="ParseRestClientModels.cs" />
+    <Compile Include="Models\QueryResult.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

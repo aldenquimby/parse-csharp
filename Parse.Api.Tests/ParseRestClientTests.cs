@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using Parse.Api.Models;
 
 namespace Parse.Api.Tests
 {
@@ -8,133 +10,124 @@ namespace Parse.Api.Tests
     public class ParseRestClientTests
     {
         private ParseRestClient _client;
-        
+
+        // fill these fields in to run all tests
+        private const string APP_ID = ""; 
+        private const string REST_API_KEY = "";
+        private const string VALID_USER_ID1 = "";
+        private const string VALID_USER_ID2 = "";
+        private const string CLOUD_FUNCTION_NAME = "";
+        private const string CLOUD_FUNCTION_RESULT = "";
+
         [SetUp]
         public void Setup()
         {
-            const string appId = ""; // put your Application ID here
-            const string restApiKey = ""; // put your REST API Key here
-
-            _client = new ParseRestClient(appId, restApiKey);
-        }
-
-        public class Test
-        {
-            public DateTime Hey { get; set; }
-            public DateTime Dude { get; set; }
-            public int Yo { get; set; }
-            public byte[] Bytes { get; set; }
-            public UserBase User { get; set; }
+            _client = new ParseRestClient(APP_ID, REST_API_KEY);
         }
 
         [Test]
         public void TestPointers()
         {
-            var obj = new ParseUnitTest7
-            {
-                SomeDate = DateTime.UtcNow.AddDays(-5),
-            };
+            // setup
+            var obj = GetFakeObj();
             var result = _client.CreateObject(obj);
-            AssertParseObjectEqual(obj, result);
-
-            // point to a different UserBase
-            result.SomePointer = new User {ObjectId = "ITxOCfOtFT"};
-            _client.Update(result);
             
-            // make sure get works
-            var result2 = _client.GetObject<ParseUnitTest7>(result.ObjectId);
-            AssertParseObjectEqual(result, result2);
-            Assert.AreEqual(result.SomePointer.ObjectId, result2.SomePointer.ObjectId);
+            // check creating pointer worked
+            Assert.AreEqual(obj.SomePointer.ObjectId, result.SomePointer.ObjectId);
 
-            // make sure recursive get works
-            result2 = _client.GetObject<ParseUnitTest7>(result.ObjectId, true);
-            AssertParseObjectEqual(result, result2);
+            // move the pointer
+            result.SomePointer = new MyUser {ObjectId = VALID_USER_ID2};
+            _client.Update(result);
+            var result2 = _client.GetObject<ParseUnitTestObj>(result.ObjectId);
             Assert.AreEqual(result.SomePointer.ObjectId, result2.SomePointer.ObjectId);
-            Assert.AreNotEqual(result.SomePointer.CreatedAt, default(DateTime));
 
             // remove the pointer
             result.SomePointer = null;
             _client.Update(result);
-            var result3 = _client.GetObject<ParseUnitTest7>(result.ObjectId);
-            AssertParseObjectEqual(result, result3);
+            var result3 = _client.GetObject<ParseUnitTestObj>(result.ObjectId);
+            Assert.IsNull(result3.SomePointer);
 
-            // delete the obj
+            // tear down
             _client.DeleteObject(result);
         }
 
         [Test]
         public void TestObjects()
         {
-            var obj = new ParseUnitTest7
-            {
-                SomeByte = 1,
-                SomeShort = 2,
-                SomeInt = 3,
-                SomeLong = 4,
-                SomeNullableBool = null,
-                SomeGeoPoint = new ParseGeoPoint(40, 40),
-                SomeBytes = new byte[]{1,2,3},
-                SomeDate = DateTime.UtcNow.AddDays(-10),
-                SomePointer = new User { ObjectId = "FWMvHBYwmK" },
-                SomeObject = new {Rando=true},
-                SomeArray = new []{1,2,3},
-            };
-
+            var obj = GetFakeObj();
+            
+            // make sure creating works
             var result = _client.CreateObject(obj);
             AssertParseObjectEqual(obj, result);
 
-            result.SomePointer = new User {ObjectId = "ITxOCfOtFT"};
+            // make sure updating works
             result.SomeNullableBool = true;
             result.SomeGeoPoint = null;
             var result2 = _client.Update(result);
             AssertParseObjectEqual(result, result2);
 
-            var result3 = _client.GetObject<ParseUnitTest7>(result2.ObjectId);
+            // make sure retreive works
+            var result3 = _client.GetObject<ParseUnitTestObj>(result2.ObjectId);
             AssertParseObjectEqual(result2, result3);
 
-            var queryResults = _client.GetObjects<ParseUnitTest7>(new 
+            // make sure recursive retreive works
+            result3 = _client.GetObject<ParseUnitTestObj>(result.ObjectId, true);
+            AssertParseObjectEqual(result2, result3);
+            Assert.AreNotEqual(result3.SomePointer.CreatedAt, default(DateTime));
+
+            // make sure querying works
+            var result4 = _client.GetObjects<ParseUnitTestObj>(new 
             {
-                SomeByte = new Constraint(greaterThan:-7),
-                SomeInt = new Constraint(lessThanOrEqualTo:1),
+                SomeByte = new Constraint {GreaterThan = obj.SomeByte + 1},
+                SomeInt = new Constraint {LessThanOrEqualTo = obj.SomeInt - 1},
             });
-            Assert.IsTrue(queryResults.Count == 0);
+            Assert.IsTrue(result4.TotalCount == 0);
+            result4 = _client.GetObjects<ParseUnitTestObj>(new
+            {
+                SomeShort = new Constraint{NotEqualTo = obj.SomeShort + 1},
+            });
+            Assert.IsTrue(result4.TotalCount > 0);
 
+            // make sure delete works
             _client.DeleteObject(result3);
-
-            // after an object is deleted, it should throw a NotFound
-            Assert.Throws<ApplicationException>(() => _client.GetObject<ParseUnitTest7>(result2.ObjectId));
-            
-            // and it should not be in any query results
-            var queryResults2 = _client.GetObjects<ParseUnitTest7>();
-            Assert.IsFalse(queryResults2.Results.Any(x => x.ObjectId.Equals(result.ObjectId)));
+            Assert.Throws<Exception>(() => _client.GetObject<ParseUnitTestObj>(result2.ObjectId));
+            var result5 = _client.GetObjects<ParseUnitTestObj>();
+            Assert.IsFalse(result5.Results.Any(x => x.ObjectId.Equals(result.ObjectId)));
         }
 
         [Test]
         public void TestUsers()
         {
-            var user = new User
-            {
-                username = "test" + new Random().Next(),
-                password = new Random().Next().ToString(),
-            };
-            user.email = user.username + "@gmail.com";
+            var user = GetFakeUser();
 
+            // make sure sign up works
             var session = _client.SignUp(user);
             Assert.IsNotNull(session.SessionToken);
             AssertParseObjectEqual(user, session.User);
 
-            user.phone = new Random().Next().ToString();
+            // make sure update works
+            user.phone = "+" + new Random().Next();
             var updated = _client.UpdateUser(session.User, session.SessionToken);
             AssertParseObjectEqual(updated, session.User);
 
-            // no auth data included
-            var result2 = _client.GetUser<User>(updated.ObjectId);
-            Assert.IsNull(result2.authData);
+            // make sure retreive works
+            var result2 = _client.GetUser<MyUser>(updated.ObjectId, session.SessionToken);
+            AssertParseObjectEqual(session.User, result2);
 
-            // new session
-            var newSession = _client.LogIn(user);
+            // make sure query works
+            var result3 = _client.GetUsers<MyUser>(new
+            {
+                email = new Constraint{In = new List<object>{user.Email}},
+                phone = new Constraint{NotIn = new List<object>{user.phone + "someStuff"}},
+            });
+            Assert.IsTrue(result3.TotalCount > 0);
 
-            _client.DeleteUser(session.User, newSession.SessionToken);
+            // make sure LogIn works
+            Assert.DoesNotThrow(() => _client.LogIn(user));
+
+            // make sure delete works
+            _client.DeleteUser(session.User, session.SessionToken);
+            Assert.Throws<Exception>(() => _client.GetUser<MyUser>(session.User.ObjectId));
         }
 
         [Test]
@@ -143,7 +136,65 @@ namespace Parse.Api.Tests
             Assert.DoesNotThrow(() => _client.MarkAppOpened());
         }
 
-        private void AssertParseObjectEqual<T>(T obj1, T obj2) where T : ParseObject
+        [Test]
+        public void TestCloudFunction()
+        {
+            var result = _client.CloudFunction(CLOUD_FUNCTION_NAME);
+            Assert.AreEqual(result, CLOUD_FUNCTION_RESULT);
+        }
+
+        [Test]
+        public void TestRelations()
+        {
+            // set up
+            var obj = GetFakeObj();
+            obj = _client.CreateObject(obj);
+
+            var allUsers = _client.GetUsers<MyUser>().Results;
+
+            // make sure adding works
+            _client.AddToRelation(obj, "SomeRelation", allUsers);
+
+            // make sure removing works
+            _client.RemoveFromRelation(obj, "SomeRelation", new[] {allUsers.First()});
+
+            // tear down
+            _client.DeleteObject(obj);
+        }
+
+        #region helpers
+
+        private static ParseUnitTestObj GetFakeObj()
+        {
+            return new ParseUnitTestObj
+            {
+                SomeByte = 1,
+                SomeShort = 2,
+                SomeInt = 3,
+                SomeLong = 4,
+                SomeNullableBool = null,
+                SomeGeoPoint = new ParseGeoPoint(40, 40),
+                SomeBytes = new byte[] { 1, 2, 3 },
+                SomeDate = DateTime.UtcNow.AddDays(-10),
+                SomeNullableDate = DateTime.UtcNow.AddDays(-30),
+                SomePointer = new MyUser { ObjectId = VALID_USER_ID1 },
+                SomeObject = new { Rando = true },
+                SomeArray = new[] { 1, 2, 3 },
+            };
+        }
+
+        private static MyUser GetFakeUser()
+        {
+            var rand = new Random().Next();
+            return new MyUser
+            {
+                Username = "user" + rand,
+                Password = "pass" + rand,
+                Email = "email" + rand + "@gmail.com",
+            };
+        }
+
+        private static void AssertParseObjectEqual<T>(T obj1, T obj2) where T : ParseObject
         {
             if (obj1 == null && obj2 == null)
             {
@@ -174,5 +225,7 @@ namespace Parse.Api.Tests
                 }
             }
         }
+
+        #endregion
     }
 }

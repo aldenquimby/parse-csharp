@@ -12,6 +12,7 @@ TestResults
 *.suo
 *.user
 *.sln.docstates
+*.sln.DotSettings
 
 # Build results
 [Dd]ebug/
@@ -78,8 +79,9 @@ publish
 # Publish Web Output
 *.Publish.xml
 
-# NuGet Packages Directory
+# NuGet Packages
 packages
+*.nupkg
 
 # Windows Azure Build Output
 csx

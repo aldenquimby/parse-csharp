@@ -5,7 +5,7 @@ using System.Reflection;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("Parse.Api")]
-[assembly: AssemblyDescription("A simple C# wrapper for the Parse REST API")]
+[assembly: AssemblyDescription("A Portable Class Library C# wrapper for the Parse REST API")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Alden Quimby")]
 [assembly: AssemblyProduct("Parse.Api")]
@@ -24,5 +24,5 @@ using System.Reflection;
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("0.2.0.0")]
-[assembly: AssemblyFileVersion("0.2.0.0")]
+[assembly: AssemblyVersion("1.0.0.1")]
+[assembly: AssemblyFileVersion("1.0.0.1")]
