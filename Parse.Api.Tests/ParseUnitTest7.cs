@@ -2,12 +2,8 @@
 
 namespace Parse.Api.Tests
 {
-    public class ParseUnitTest7 : IParseObject
+    public class ParseUnitTest7 : ParseObject
     {
-        public DateTime CreatedAt { get; set; }
-        public DateTime UpdatedAt { get; set; }
-        public string ObjectId { get; set; }
-
         public byte SomeByte { get; set; }
         public short SomeShort { get; set; }
         public int SomeInt { get; set; }

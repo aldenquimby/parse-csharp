@@ -2,9 +2,6 @@
 using System.Collections.Generic;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using RestSharp;
-using RestSharp.Deserializers;
-using JsonSerializer = Newtonsoft.Json.JsonSerializer;
 
 namespace Parse.Api
 {
@@ -64,19 +61,15 @@ namespace Parse.Api
         }
     }
 
-    public class ParseJsonDeserializer : IDeserializer
+    public class ParseJsonDeserializer
     {
-        public T Deserialize<T>(IRestResponse response)
+        public T Deserialize<T>(string content)
         {
-            return JsonConvert.DeserializeObject<T>(response.Content, new JsonSerializerSettings
+            return JsonConvert.DeserializeObject<T>(content, new JsonSerializerSettings
             {
-                DateFormatString = DateFormat,
+                DateFormatString = ParseDate.DATE_FMT,
                 Converters = new List<JsonConverter> { new ParseBytesConverter(), new ParseDateConverter() },
             });
         }
-
-        public string RootElement { get; set; }
-        public string Namespace { get; set; }
-        public string DateFormat { get; set; }
     }
 }

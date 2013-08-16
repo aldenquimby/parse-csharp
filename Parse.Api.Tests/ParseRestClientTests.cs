@@ -1,12 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using NUnit.Framework;
-using RestSharp;
-using RestSharp.Deserializers;
 
 namespace Parse.Api.Tests
 {
@@ -149,7 +143,7 @@ namespace Parse.Api.Tests
             Assert.DoesNotThrow(() => _client.MarkAppOpened());
         }
 
-        private void AssertParseObjectEqual<T>(T obj1, T obj2) where T : class, IParseObject
+        private void AssertParseObjectEqual<T>(T obj1, T obj2) where T : ParseObject
         {
             if (obj1 == null && obj2 == null)
             {

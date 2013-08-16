@@ -2,6 +2,23 @@
 
 namespace Parse.Api
 {
+    public class ParseObject
+    {
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
+        public string ObjectId { get; set; }
+
+        public static string GetClassName(Type type)
+        {
+            if (typeof(UserBase).IsAssignableFrom(type))
+            {
+                return "_User";
+            }
+
+            return type.Name;
+        }
+    }
+
     public class ParseDate
     {
         public ParseDate(DateTime utcDate)
@@ -41,7 +58,7 @@ namespace Parse.Api
 
     public class ParsePointer
     {
-        public ParsePointer(IParseObject obj)
+        public ParsePointer(ParseObject obj)
         {
             if (obj != null)
             {
@@ -57,7 +74,7 @@ namespace Parse.Api
 
     public class ParseRelation
     {
-        public ParseRelation(IParseObject obj)
+        public ParseRelation(ParseObject obj)
         {
             if (obj != null)
             {
