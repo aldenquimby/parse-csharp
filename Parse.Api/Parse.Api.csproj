@@ -11,7 +11,7 @@
     <RootNamespace>Parse.Api</RootNamespace>
     <AssemblyName>Parse.Api</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
-    <TargetFrameworkProfile>Profile2</TargetFrameworkProfile>
+    <TargetFrameworkProfile>Profile88</TargetFrameworkProfile>
     <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{786C830F-07A1-408B-BD7F-6EE04809D6DB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
   </PropertyGroup>
@@ -23,6 +23,8 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <DocumentationFile>
+    </DocumentationFile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -31,26 +33,27 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <DocumentationFile>bin\Release\Parse.Api.XML</DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Attributes\JsonIgnoreForSerializationAttribute.cs" />
+    <Compile Include="Constants.cs" />
     <Compile Include="Converters\ParseBytesConverter.cs" />
     <Compile Include="Converters\ParseDateConverter.cs" />
-    <Compile Include="Converters\ParseJsonConverter.cs" />
     <Compile Include="Extensions\HttpExtensions.cs" />
     <Compile Include="IParseRestClient.cs" />
     <Compile Include="Models\Constraint.cs" />
     <Compile Include="Models\Internal\ParseBytes.cs" />
     <Compile Include="Models\Internal\ParseDate.cs" />
-    <Compile Include="Models\Internal\ParsePointer.cs" />
-    <Compile Include="Models\Internal\ParseRelation.cs" />
+    <Compile Include="Models\ParseException.cs" />
     <Compile Include="Models\ParseGeoPoint.cs" />
     <Compile Include="Models\ParseObject.cs" />
+    <Compile Include="Models\Internal\ParsePointer.cs" />
+    <Compile Include="Models\Internal\ParseRelation.cs" />
+    <Compile Include="Converters\ParseJsonConverter.cs" />
     <Compile Include="Models\ParseResult.cs" />
     <Compile Include="Models\ParseUser.cs" />
-    <Compile Include="Models\ParseException.cs" />
     <Compile Include="ParseRestClient.cs" />
-    <Compile Include="Constants.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

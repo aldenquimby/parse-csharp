@@ -10,7 +10,7 @@
     <projectUrl>https://github.com/aldenquimby/parse-csharp</projectUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>$description$</description>
-    <releaseNotes>Remove dependency on Microsoft.Net.Http, so that the project works with Visual Studio 2010. Catch exceptions from the API and return as part of result, instead of throwing.</releaseNotes>
+    <releaseNotes>Remove dependency on Microsoft.Net.Http. Catch exceptions from the API and return as part of result, instead of throwing.</releaseNotes>
     <copyright>Copyright 2013</copyright>
     <tags>Parse REST API wrapper</tags>
   </metadata>

@@ -8,6 +8,7 @@ namespace Parse.Api.Models
     /// </summary>
     public class ParseResult
     {
+        internal string Content { get; set; }
         public ParseException Exception { get; set; }
     }
 

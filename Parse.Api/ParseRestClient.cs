@@ -18,6 +18,8 @@ namespace Parse.Api
     /// <seealso cref="http://parse.com/docs/rest"/>
     public class ParseRestClient : IParseRestClient
     {
+        public TimeSpan Timeout { get; set; }
+
         private readonly WebHeaderCollection _defaultHeaders;
 
         public ParseRestClient(string appId, string restApiKey)
@@ -30,6 +32,7 @@ namespace Parse.Api
             _defaultHeaders = new WebHeaderCollection();
             _defaultHeaders.Add(ParseHeaders.APP_ID, appId);
             _defaultHeaders.Add(ParseHeaders.REST_API_KEY, restApiKey);
+            Timeout = TimeSpan.FromSeconds(30);
         }
 
         #region objects
@@ -269,17 +272,17 @@ namespace Parse.Api
             var request = CreateRequest("POST", ParseUrls.USER);
             request.AddParseBody(user);
 
-            var response = ExecuteAndValidate<UserSessionResponse>(request, HttpStatusCode.Created);
+            var response = ExecuteAndValidate<ParseObject>(request);
 
-            var result = new UserResult<T> {Exception = response.Exception};
+            var result = new UserResult<T> { Exception = response.Exception };
 
             if (response.Exception == null)
             {
+                result.SessionToken = JsonConvert.DeserializeObject<UserResult<T>>(response.Content).SessionToken;
                 user.CreatedAt = response.Result.CreatedAt;
                 user.UpdatedAt = response.Result.CreatedAt; // UpdatedAt doesn't come back for create requests
                 user.ObjectId = response.Result.ObjectId;
                 result.User = user;
-                result.SessionToken = response.Result.SessionToken;
             }
 
             return result;
@@ -300,22 +303,13 @@ namespace Parse.Api
             var resource = ParseUrls.LOGIN + "?username=" + user.Username + "&password=" + user.Password;
             var request = CreateRequest("GET", resource);
 
-            var response = ExecuteAndValidate(request);
+            var response = ExecuteAndValidate<T>(request);
 
-            var result = new UserResult<T> { Exception = response.Exception };
+            var result = new UserResult<T> {Exception = response.Exception, User = response.Result};
 
             if (response.Exception == null)
             {
-                // TODO this is ugly
-                try
-                {
-                    result.User = JsonConvert.DeserializeObject<T>(response.Result);
-                    result.SessionToken = JsonConvert.DeserializeObject<UserSessionResponse>(response.Result).SessionToken;
-                }
-                catch
-                {
-                    result.Exception = new ParseException { Error = "Parse API succeeded, but deserialization failed." };
-                }
+                result.SessionToken = JsonConvert.DeserializeObject<UserResult<T>>(response.Content).SessionToken;
             }
 
             return result;
@@ -418,14 +412,15 @@ namespace Parse.Api
             
             var request = CreateRequest("POST", resource);
             request.AddBody(data ?? new {}); // need a blank body or the API borks
-            
-            var response = ExecuteAndValidate<CloudFunctionResponse>(request);
 
-            var result = new ParseResult<string> {Exception = response.Exception};
+            var response = ExecuteAndValidate(request);
+
+            var result = new ParseResult<string> { Exception = response.Exception };
 
             if (response.Exception == null)
             {
-                result.Result = response.Result.Result;
+                var cloudFunctionResponse = new {result = ""};
+                result.Result = JsonConvert.DeserializeAnonymousType(response.Content, cloudFunctionResponse).result;
             }
 
             return result;
@@ -465,7 +460,6 @@ namespace Parse.Api
             request.Method = httpMethod;
 
             // add defaults
-            request.ContentType = "application/json";
             foreach (var headerKey in _defaultHeaders.AllKeys)
             {
                 request.Headers.Add(headerKey, _defaultHeaders[headerKey]);
@@ -484,25 +478,28 @@ namespace Parse.Api
             {
                 try
                 {
-                    result.Result = JsonConvert.DeserializeObject<T>(contentResult.Result, new JsonSerializerSettings
+                    result.Result = JsonConvert.DeserializeObject<T>(contentResult.Content, new JsonSerializerSettings
                     {
                         Converters = new List<JsonConverter> { new ParseBytesConverter(), new ParseDateConverter() },
                     });
                 }
-                catch
+                catch (Exception e)
                 {
-                    result.Exception = new ParseException { Error = "Parse API succeeded, but deserialization failed." };
+                    result.Exception = new ParseException { Error = "Parse API succeeded, but deserialization failed. " + e.Message };
                 }
             }
 
             return result;
         }
 
-        private ParseResult<string> ExecuteAndValidate(WebRequest request, HttpStatusCode expectedCode = HttpStatusCode.OK)
+        private ParseResult ExecuteAndValidate(WebRequest request, HttpStatusCode expectedCode = HttpStatusCode.OK)
         {
-            var result = new ParseResult<string>();
-
             var response = Execute(request, expectedCode);
+
+            var result = new ParseResult
+            {
+                Content = response.Content
+            };
 
             if (response.StatusCode != expectedCode)
             {
@@ -516,11 +513,6 @@ namespace Parse.Api
                     result.Exception = new ParseException { Error = "Parse API failed with unknown exception" };
                 }
                 result.Exception.StatusCode = response.StatusCode;
-            }
-            else
-            {
-                // valid status code
-                result.Result = response.Content;
             }
 
             return result;
@@ -572,25 +564,15 @@ namespace Parse.Api
                 }
             }, request);
 
-            done.WaitOne(TimeSpan.FromSeconds(30));
+            done.WaitOne(Timeout);
 
             return response;
         }
 
-        private class ParseResponse
+        internal class ParseResponse
         {
             public string Content { get; set; }
             public HttpStatusCode StatusCode { get; set; }
-        }
-
-        private class UserSessionResponse : ParseObject
-        {
-            public string SessionToken { get; set; }
-        }
-
-        private class CloudFunctionResponse
-        {
-            public string Result { get; set; }
         }
 
         #endregion
