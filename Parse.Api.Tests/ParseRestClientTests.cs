@@ -12,7 +12,7 @@ namespace Parse.Api.Tests
         private ParseRestClient _client;
 
         // fill these fields in to run all tests
-        private const string APP_ID = ""; 
+        private const string APP_ID = "";
         private const string REST_API_KEY = "";
         private const string VALID_USER_ID1 = "";
         private const string VALID_USER_ID2 = "";
@@ -30,21 +30,21 @@ namespace Parse.Api.Tests
         {
             // setup
             var obj = GetFakeObj();
-            var result = _client.CreateObject(obj);
-            
+            var result = _client.CreateObject(obj).Result;
+
             // check creating pointer worked
             Assert.AreEqual(obj.SomePointer.ObjectId, result.SomePointer.ObjectId);
 
             // move the pointer
             result.SomePointer = new MyUser {ObjectId = VALID_USER_ID2};
             _client.Update(result);
-            var result2 = _client.GetObject<ParseUnitTestObj>(result.ObjectId);
+            var result2 = _client.GetObject<ParseUnitTestObj>(result.ObjectId).Result;
             Assert.AreEqual(result.SomePointer.ObjectId, result2.SomePointer.ObjectId);
 
             // remove the pointer
             result.SomePointer = null;
             _client.Update(result);
-            var result3 = _client.GetObject<ParseUnitTestObj>(result.ObjectId);
+            var result3 = _client.GetObject<ParseUnitTestObj>(result.ObjectId).Result;
             Assert.IsNull(result3.SomePointer);
 
             // tear down
@@ -57,21 +57,21 @@ namespace Parse.Api.Tests
             var obj = GetFakeObj();
             
             // make sure creating works
-            var result = _client.CreateObject(obj);
+            var result = _client.CreateObject(obj).Result;
             AssertParseObjectEqual(obj, result);
 
             // make sure updating works
             result.SomeNullableBool = true;
             result.SomeGeoPoint = null;
-            var result2 = _client.Update(result);
+            var result2 = _client.Update(result).Result;
             AssertParseObjectEqual(result, result2);
 
             // make sure retreive works
-            var result3 = _client.GetObject<ParseUnitTestObj>(result2.ObjectId);
+            var result3 = _client.GetObject<ParseUnitTestObj>(result2.ObjectId).Result;
             AssertParseObjectEqual(result2, result3);
 
             // make sure recursive retreive works
-            result3 = _client.GetObject<ParseUnitTestObj>(result.ObjectId, true);
+            result3 = _client.GetObject<ParseUnitTestObj>(result.ObjectId, true).Result;
             AssertParseObjectEqual(result2, result3);
             Assert.AreNotEqual(result3.SomePointer.CreatedAt, default(DateTime));
 
@@ -90,7 +90,9 @@ namespace Parse.Api.Tests
 
             // make sure delete works
             _client.DeleteObject(result3);
-            Assert.Throws<Exception>(() => _client.GetObject<ParseUnitTestObj>(result2.ObjectId));
+            var shouldFail = _client.GetObject<ParseUnitTestObj>(result2.ObjectId);
+            Assert.IsNotNull(shouldFail.Exception);
+
             var result5 = _client.GetObjects<ParseUnitTestObj>();
             Assert.IsFalse(result5.Results.Any(x => x.ObjectId.Equals(result.ObjectId)));
         }
@@ -107,11 +109,11 @@ namespace Parse.Api.Tests
 
             // make sure update works
             user.phone = "+" + new Random().Next();
-            var updated = _client.UpdateUser(session.User, session.SessionToken);
+            var updated = _client.UpdateUser(session.User, session.SessionToken).Result;
             AssertParseObjectEqual(updated, session.User);
 
             // make sure retreive works
-            var result2 = _client.GetUser<MyUser>(updated.ObjectId, session.SessionToken);
+            var result2 = _client.GetUser<MyUser>(updated.ObjectId, session.SessionToken).Result;
             AssertParseObjectEqual(session.User, result2);
 
             // make sure query works
@@ -127,19 +129,21 @@ namespace Parse.Api.Tests
 
             // make sure delete works
             _client.DeleteUser(session.User, session.SessionToken);
-            Assert.Throws<Exception>(() => _client.GetUser<MyUser>(session.User.ObjectId));
+            var shouldFail = _client.GetUser<MyUser>(session.User.ObjectId);
+            Assert.IsNotNull(shouldFail.Exception);
         }
 
         [Test]
         public void TestAnalytics()
         {
-            Assert.DoesNotThrow(() => _client.MarkAppOpened());
+            var result = _client.MarkAppOpened();
+            Assert.IsNull(result.Exception);
         }
 
         [Test]
         public void TestCloudFunction()
         {
-            var result = _client.CloudFunction(CLOUD_FUNCTION_NAME);
+            var result = _client.CloudFunction(CLOUD_FUNCTION_NAME).Result;
             Assert.AreEqual(result, CLOUD_FUNCTION_RESULT);
         }
 
@@ -148,7 +152,7 @@ namespace Parse.Api.Tests
         {
             // set up
             var obj = GetFakeObj();
-            obj = _client.CreateObject(obj);
+            obj = _client.CreateObject(obj).Result;
 
             var allUsers = _client.GetUsers<MyUser>().Results;
 

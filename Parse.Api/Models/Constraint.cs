@@ -5,10 +5,9 @@ namespace Parse.Api.Models
 {
     // TODO GeoQueries
     /// <summary>
-    /// Constraints are used for constructing more precise queries. The property names follow those listed on the 
-    /// Parse REST API Constraints page, available at https://parse.com/docs/rest#queries-constraints. Usage can
-    /// be found in the main readme.md file of this repository.
+    /// Constraints are used for constructing precise queries. For usage, see the README.
     /// </summary>
+    /// <seealso cref="http://parse.com/docs/rest#queries-constraints"/>
     public class Constraint
     {
         /// <summary>

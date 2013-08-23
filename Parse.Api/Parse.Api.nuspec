@@ -6,10 +6,11 @@
     <title>$title$</title>
     <authors>$author$</authors>
     <owners>$author$</owners>
+    <licenseUrl>https://raw.github.com/aldenquimby/parse-csharp/master/LICENSE</licenseUrl>
     <projectUrl>https://github.com/aldenquimby/parse-csharp</projectUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>$description$</description>
-    <releaseNotes>Change to Portable Class Library and include XML documentation. Can now be used with .NET Framwork 4.0 and higher, Silverlight 4 and higher, Windows Phone 7.1 and higher, and .NET for Windows Store apps.</releaseNotes>
+    <releaseNotes>Remove dependency on Microsoft.Net.Http, so that the project works with Visual Studio 2010. Catch exceptions from the API and return as part of result, instead of throwing.</releaseNotes>
     <copyright>Copyright 2013</copyright>
     <tags>Parse REST API wrapper</tags>
   </metadata>
