@@ -118,10 +118,6 @@ should search multiple lines. More information can be found here: [https://parse
          ManufacturerEmail = new Constraint(regex: @"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,6}\b", regexOptions: "im")
      });
 
-#### And much more
-
-This wrapper supports every end point of the <a href="http://developer.rottentomatoes.com/docs/read/JSON" target="_blank">Rotten Tomatoes JSON API</a>.
-
 ## Installation
 
-Add this to your project using <a href="https://www.nuget.org/packages/RottenTomatoes.Api/" target="_blank">NuGet</a>. 
+Add this to your project using <a href="https://www.nuget.org/packages/Parse.Api/" target="_blank">NuGet</a>. 
