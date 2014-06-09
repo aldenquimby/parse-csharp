@@ -307,7 +307,7 @@ namespace Parse.Api
 
             var result = new UserResult<T> {Exception = response.Exception, User = response.Result};
 
-            if (response.Exception == null)
+            if (response.Exception == null && response.Content!=null)
             {
                 result.SessionToken = JsonConvert.DeserializeObject<UserResult<T>>(response.Content).SessionToken;
             }
