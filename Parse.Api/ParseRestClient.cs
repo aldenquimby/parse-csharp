@@ -125,13 +125,7 @@ namespace Parse.Api
         {
             if (includeReferences)
             {
-                var pointers = typeof(T).GetProperties()
-                                         .Where(x => typeof(ParseObject).IsAssignableFrom(x.PropertyType))
-                                         .Select(x => x.Name).ToArray();
-                if (pointers.Length > 0)
-                {
-                    resource += "?include=" + string.Join(",", pointers);
-                }
+                resource += "?" + GetIncludeReferencesParam<T>();
             }
 
             var request = CreateRequest("GET", resource);
@@ -151,8 +145,9 @@ namespace Parse.Api
         /// <param name="order">The name of the attribute used to order results. Prefacing with '-' will reverse results. Comma separate for multiple orderings.</param>
         /// <param name="limit">The maximum number of results to be returned</param>
         /// <param name="skip">The number of results to skip at the start</param>
+        /// <param name="includeReferences">Whether or not to fetch objects pointed to</param>
         /// <returns>A list of result object, and the total count of results in case the results were limited</returns>
-        public QueryResult<T> GetObjects<T>(object where = null, string order = null, int limit = 100, int skip = 0) where T : ParseObject, new()
+        public QueryResult<T> GetObjects<T>(object where = null, string order = null, int limit = 100, int skip = 0, bool includeReferences = false) where T : ParseObject, new()
         {
             var type = typeof (T);
 
@@ -163,10 +158,10 @@ namespace Parse.Api
 
             var resource = string.Format(ParseUrls.CLASS, type.Name);
 
-            return GetObjectsInternal<T>(resource, where, order, limit, skip);
+            return GetObjectsInternal<T>(resource, where, order, limit, skip, includeReferences);
         }
 
-        private QueryResult<T> GetObjectsInternal<T>(string resource, object where, string order, int limit, int skip) where T : ParseObject, new()
+        private QueryResult<T> GetObjectsInternal<T>(string resource, object where, string order, int limit, int skip, bool includeReferences) where T : ParseObject, new()
         {
             resource += "?limit=" + limit + "&skip=" + skip + "&count=1";
             if (where != null)
@@ -177,6 +172,10 @@ namespace Parse.Api
             if (order != null)
             {
                 resource += "&order=" + order;
+            }
+            if (includeReferences)
+            {
+                resource += "&" + GetIncludeReferencesParam<T>();
             }
 
             var request = CreateRequest("GET", resource);
@@ -190,6 +189,18 @@ namespace Parse.Api
             response.Result.Exception = response.Exception;
 
             return response.Result;
+        }
+
+        private String GetIncludeReferencesParam<T>() where T : ParseObject, new()
+        {
+            var pointers = typeof(T).GetProperties()
+                .Where(x => typeof(ParseObject).IsAssignableFrom(x.PropertyType))
+                .Select(x => x.Name).ToArray();
+            if (pointers.Length > 0)
+            {
+                return "include=" + string.Join(",", pointers);
+            }
+            return "";
         }
 
         /// <summary>
@@ -344,7 +355,7 @@ namespace Parse.Api
         /// <returns>A list of result users, and the total count of results in case the results were limited</returns>
         public QueryResult<T> GetUsers<T>(object where = null, string order = null, int limit = 100, int skip = 0) where T : ParseUser, new()
         {
-            return GetObjectsInternal<T>(ParseUrls.USER, where, order, limit, skip);
+            return GetObjectsInternal<T>(ParseUrls.USER, where, order, limit, skip, false);
         }
 
         /// <summary>
