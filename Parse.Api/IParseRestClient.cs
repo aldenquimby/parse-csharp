@@ -38,8 +38,9 @@ namespace Parse.Api
         /// <param name="order">The name of the attribute used to order results. Prefacing with '-' will reverse results. Comma separate for multiple orderings.</param>
         /// <param name="limit">The maximum number of results to be returned</param>
         /// <param name="skip">The number of results to skip at the start</param>
+		/// <param name="includeReferences">Whether or not to fetch objects pointed to</param>
         /// <returns>A list of result object, and the total count of results in case the results were limited</returns>
-        QueryResult<T> GetObjects<T>(object where = null, string order = null, int limit = 100, int skip = 0) where T : ParseObject, new();
+		QueryResult<T> GetObjects<T>(object where = null, string order = null, int limit = 100, int skip = 0, bool includeReferences = false) where T : ParseObject, new();
 
         /// <summary>
         /// Deletes an object from Parse
