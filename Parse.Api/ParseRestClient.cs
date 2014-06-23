@@ -435,6 +435,32 @@ namespace Parse.Api
             }
 
             return result;
+        }        
+        
+        
+        /// <summary>
+        /// Executes a pre-existing cloud function, see here for details: https://www.parse.com/docs/cloud_code_guide
+        /// </summary>
+        /// <param name="name">The name of the cloud code function</param>
+        /// <param name="data">Data to pass to the cloud code function</param>
+        /// <returns>The result of the cloud code function</returns>
+        public QueryResult<T> GetObjectsFromCloudFunction<T>(string name, object data = null)
+        {
+            var resource = string.Format(ParseUrls.FUNCTION, name);
+            
+            var request = CreateRequest("POST", resource);
+            request.AddBody(data ?? new {}); // need a blank body or the API borks
+
+            var response = ExecuteAndValidate<QueryResult<T>>(request);
+
+            if (response.Result == null)
+            {
+                response.Result = new QueryResult<T>();
+            }
+
+            response.Result.Exception = response.Exception;
+
+            return response.Result;
         }
 
         #endregion
