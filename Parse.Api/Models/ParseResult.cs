@@ -33,6 +33,16 @@ namespace Parse.Api.Models
     }
 
     /// <summary>
+    /// The results of a cloud function that returns a collection
+    /// </summary>
+    public class CloudFunctionResult<T>
+    {
+        public ParseException Exception { get; set; }
+        [JsonProperty("result")]
+        public List<T> Results { get; set; }
+    }
+
+    /// <summary>
     /// Users receive a session token after signing up or logging in.
     /// The session token is required to update user information.
     /// </summary>
