@@ -82,11 +82,11 @@ namespace Parse.Api.Models
         [JsonProperty("$regex", NullValueHandling = NullValueHandling.Ignore)]
         public string Regex { get; set; }
 
-		/// <summary>
-		/// Used to find Parse objects that are related to other objects.
-		/// </summary>
-		[JsonProperty("$relatedTo", NullValueHandling = NullValueHandling.Ignore)]
-		public object RelatedTo { get; set; }
+        /// <summary>
+        /// Used to find Parse objects that are related to other objects.
+        /// </summary>
+        [JsonProperty("$relatedTo", NullValueHandling = NullValueHandling.Ignore)]
+        public object RelatedTo { get; set; }
 
         /// <summary>
         /// Options used to control how the regex property matches values. 
