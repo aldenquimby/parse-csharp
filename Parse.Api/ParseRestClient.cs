@@ -485,7 +485,7 @@ namespace Parse.Api
 
             var result = new ParseResult<T> { Exception = contentResult.Exception };
 
-			if (contentResult.Exception == null || (contentResult.Exception != null && contentResult.Exception.Code == 0))
+			if (contentResult.Exception == null)
             {
                 try
                 {
