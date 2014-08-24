@@ -283,7 +283,7 @@ namespace Parse.Api
             var request = CreateRequest("POST", ParseUrls.USER);
             request.AddParseBody(user);
 
-            var response = ExecuteAndValidate<ParseObject>(request);
+			var response = ExecuteAndValidate<ParseObject>(request,HttpStatusCode.Created);
 
             var result = new UserResult<T> { Exception = response.Exception };
 
@@ -485,7 +485,7 @@ namespace Parse.Api
 
             var result = new ParseResult<T> { Exception = contentResult.Exception };
 
-            if (contentResult.Exception == null)
+			if (contentResult.Exception == null)
             {
                 try
                 {
@@ -493,6 +493,7 @@ namespace Parse.Api
                     {
                         Converters = new List<JsonConverter> { new ParseBytesConverter(), new ParseDateConverter() },
                     });
+					result.Content = contentResult.Content;
                 }
                 catch (Exception e)
                 {
