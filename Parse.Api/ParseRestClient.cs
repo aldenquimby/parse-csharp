@@ -493,6 +493,7 @@ namespace Parse.Api
                     {
                         Converters = new List<JsonConverter> { new ParseBytesConverter(), new ParseDateConverter() },
                     });
+					result.Content = contentResult.Content;
                 }
                 catch (Exception e)
                 {
