@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System;
+using System.Net;
 
 namespace Parse.Api.Models
 {
@@ -11,5 +12,10 @@ namespace Parse.Api.Models
         public int Code { get; set; }
         public string Error { get; set; }
         public HttpStatusCode StatusCode { get; set; }
+        
+        public override String ToString()
+        {
+            return "Error " + Code + ": " + Error;
+        }
     }
 }

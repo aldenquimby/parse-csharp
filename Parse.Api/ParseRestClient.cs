@@ -1,14 +1,13 @@
-﻿using System;
+﻿using Parse.Api.Converters;
+using Parse.Api.Extensions;
+using Parse.Api.Models;
+using Parse.Api.Models.Internal;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading;
-using Newtonsoft.Json;
-using Parse.Api.Converters;
-using Parse.Api.Extensions;
-using Parse.Api.Models;
-using Parse.Api.Models.Internal;
 
 namespace Parse.Api
 {
@@ -21,18 +20,29 @@ namespace Parse.Api
         public TimeSpan Timeout { get; set; }
 
         private readonly WebHeaderCollection _defaultHeaders;
+        private readonly string url;
 
-        public ParseRestClient(string appId, string restApiKey)
+        /// <summary>
+        /// Create a client for making calls to the Parse Server
+        /// </summary>
+        /// <param name="appId">Required</param>
+        /// <param name="restApiKey">Optional, depending on server configuration.  If your Parse Server instance uses a REST key, you must supply it or all requests will fail.</param>
+        /// <param name="serverUrl">The full URL of your Parse Server, for example https://example.com/my-server/parse/ .  Required.</param>
+        public ParseRestClient(string appId, string restApiKey, string serverUrl)
         {
-            if (string.IsNullOrEmpty(appId) || string.IsNullOrEmpty(restApiKey))
+            if (string.IsNullOrEmpty(appId) || string.IsNullOrEmpty(serverUrl))
             {
                 throw new ArgumentNullException();
             }
 
             _defaultHeaders = new WebHeaderCollection();
             _defaultHeaders.Add(ParseHeaders.APP_ID, appId);
-            _defaultHeaders.Add(ParseHeaders.REST_API_KEY, restApiKey);
+            if (!String.IsNullOrEmpty(restApiKey))
+            {
+                _defaultHeaders.Add(ParseHeaders.REST_API_KEY, restApiKey);
+            }
             Timeout = TimeSpan.FromSeconds(30);
+            url = serverUrl;
         }
 
         #region objects
@@ -49,13 +59,13 @@ namespace Parse.Api
                 throw new ArgumentNullException("obj");
             }
 
-            var resource = string.Format(ParseUrls.CLASS, typeof (T).Name);
+            var resource = string.Format(ParseUrls.CLASS, typeof(T).Name);
             var request = CreateRequest("POST", resource);
             request.AddParseBody(obj);
 
             var response = ExecuteAndValidate<ParseObject>(request, HttpStatusCode.Created);
 
-            var result = new ParseResult<T> {Exception = response.Exception};
+            var result = new ParseResult<T> { Exception = response.Exception };
 
             if (response.Exception == null)
             {
@@ -79,7 +89,7 @@ namespace Parse.Api
                 throw new ArgumentException("ObjectId is required.");
             }
 
-            var resource = string.Format(ParseUrls.CLASS_OBJECT, typeof (T).Name, obj.ObjectId);
+            var resource = string.Format(ParseUrls.CLASS_OBJECT, typeof(T).Name, obj.ObjectId);
             var request = CreateRequest("PUT", resource);
             request.AddParseBody(obj);
 
@@ -109,9 +119,9 @@ namespace Parse.Api
                 throw new ArgumentNullException("objectId");
             }
 
-            var type = typeof (T);
+            var type = typeof(T);
 
-            if (typeof (ParseUser).IsAssignableFrom(type))
+            if (typeof(ParseUser).IsAssignableFrom(type))
             {
                 throw new ArgumentException("Use GetUser() instead of GetObject() to query users.");
             }
@@ -149,9 +159,9 @@ namespace Parse.Api
         /// <returns>A list of result object, and the total count of results in case the results were limited</returns>
         public QueryResult<T> GetObjects<T>(object where = null, string order = null, int limit = 100, int skip = 0, bool includeReferences = false) where T : ParseObject, new()
         {
-            var type = typeof (T);
+            var type = typeof(T);
 
-            if (typeof (ParseUser).IsAssignableFrom(type))
+            if (typeof(ParseUser).IsAssignableFrom(type))
             {
                 throw new ArgumentException("Use GetUsers() instead of GetObjects() to query users.");
             }
@@ -238,7 +248,7 @@ namespace Parse.Api
         /// <param name="toObjs">The ParseObjects to add to the relation</param>
         public ParseResult AddToRelation<T>(T fromObj, string relationName, IEnumerable<ParseObject> toObjs) where T : ParseObject, new()
         {
-            var resource = string.Format(ParseUrls.CLASS_OBJECT, typeof (T).Name, fromObj.ObjectId);
+            var resource = string.Format(ParseUrls.CLASS_OBJECT, typeof(T).Name, fromObj.ObjectId);
             var request = CreateRequest("PUT", resource);
             request.AddBody(new Dictionary<string, object>
             {
@@ -316,9 +326,9 @@ namespace Parse.Api
 
             var response = ExecuteAndValidate<T>(request);
 
-            var result = new UserResult<T> {Exception = response.Exception, User = response.Result};
+            var result = new UserResult<T> { Exception = response.Exception, User = response.Result };
 
-            if (response.Exception == null && response.Content!=null)
+            if (response.Exception == null && response.Content != null)
             {
                 result.SessionToken = JsonConvert.DeserializeObject<UserResult<T>>(response.Content).SessionToken;
             }
@@ -403,7 +413,7 @@ namespace Parse.Api
             var resource = string.Format(ParseUrls.USER_OBJECT, user.ObjectId);
             var request = CreateRequest("DELETE", resource);
             request.Headers.Add(ParseHeaders.SESSION_TOKEN, sessionToken);
-            
+
             return ExecuteAndValidate(request);
         }
 
@@ -420,9 +430,9 @@ namespace Parse.Api
         public ParseResult<string> CloudFunction(string name, object data = null)
         {
             var resource = string.Format(ParseUrls.FUNCTION, name);
-            
+
             var request = CreateRequest("POST", resource);
-            request.AddBody(data ?? new {}); // need a blank body or the API borks
+            request.AddBody(data ?? new { }); // need a blank body or the API borks
 
             var response = ExecuteAndValidate(request);
 
@@ -430,7 +440,7 @@ namespace Parse.Api
 
             if (response.Exception == null)
             {
-                var cloudFunctionResponse = new {result = ""};
+                var cloudFunctionResponse = new { result = "" };
                 result.Result = JsonConvert.DeserializeAnonymousType(response.Content, cloudFunctionResponse).result;
             }
 
@@ -450,11 +460,11 @@ namespace Parse.Api
             var request = CreateRequest("POST", ParseUrls.APP_OPENED);
             if (dateUtc.HasValue)
             {
-                request.AddBody(new {at = new ParseDate(dateUtc.Value)});
+                request.AddBody(new { at = new ParseDate(dateUtc.Value) });
             }
             else
             {
-                request.AddBody(new {}); // need a blank body or the API borks
+                request.AddBody(new { }); // need a blank body or the API borks
             }
             return ExecuteAndValidate(request);
         }
@@ -465,8 +475,8 @@ namespace Parse.Api
 
         private HttpWebRequest CreateRequest(string httpMethod, string resource)
         {
-            var request = WebRequest.CreateHttp(ParseUrls.BASE + resource);
-            
+            var request = WebRequest.CreateHttp(url + resource);
+
             // set method
             request.Method = httpMethod;
 
@@ -539,17 +549,17 @@ namespace Parse.Api
             {
                 try
                 {
-                    var theRequest = (HttpWebRequest) ar1.AsyncState;
+                    var theRequest = (HttpWebRequest)ar1.AsyncState;
                     HttpWebResponse httpResponse;
 
                     try
                     {
-                        httpResponse = (HttpWebResponse) theRequest.EndGetResponse(ar1);
+                        httpResponse = (HttpWebResponse)theRequest.EndGetResponse(ar1);
                     }
                     catch (WebException we)
                     {
                         // server responses in the range of 4xx and 5xx throw a WebException
-                        httpResponse = (HttpWebResponse) we.Response;
+                        httpResponse = (HttpWebResponse)we.Response;
                     }
 
                     response.StatusCode = httpResponse.StatusCode;

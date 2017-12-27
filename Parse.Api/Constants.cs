@@ -2,8 +2,6 @@
 {
     internal static class ParseUrls
     {
-        public const string BASE = "https://api.parse.com/1/";
-
         // POST to create, GET to query
         public const string CLASS = "classes/{0}";
 
