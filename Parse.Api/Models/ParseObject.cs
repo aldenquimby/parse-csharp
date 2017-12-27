@@ -5,6 +5,7 @@ namespace Parse.Api.Models
 {
     /// <summary>
     /// Base class for all objects in Parse
+    /// Subclasses must be named exactly as the class is named in the Parse database.
     /// </summary>
     public class ParseObject
     {
